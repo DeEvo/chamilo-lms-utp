@@ -274,4 +274,6 @@ $NoSVGImagesInImagesGalleryPath = "No existen imágenes SVG en su carpeta de gal
 $NoSVGImages = "No hay imágenes SVG";
 $WamiNeedFilename = "Antes de activar la grabación es necesario dar un nombre al archivo.";
 $SelectAnAudioFileFromDocuments = "Seleccionar un archivo de audio desde los documentos";
+$FileUrlNotFound = "La ruta del archivo no fue encontrada";
+$FileIsHidden = "El archivo no se puede mostrar";
 ?>

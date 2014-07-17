@@ -25,6 +25,7 @@
  * INITIALIZATION
  */
 $language_file[] = 'document';
+$language_file[] = 'trad4all';
 require_once '../inc/global.inc.php';
 
 api_protect_course_script();
@@ -38,7 +39,7 @@ $course_code = api_get_course_id();
 $session_id = api_get_session_id();
 
 if (empty($course_info)) {
-    api_not_allowed(true);
+    api_not_allowed(true, Display::return_message(get_lang('NoCoursesForThisSession').'<br/><br/><a href="'.$home_url.'">'.get_lang('ReturnToCourseHomepage').'</a>', 'error', false));
 }
 
 //Generate path 
@@ -51,7 +52,7 @@ if ($session_id != 0 and !$document_data) {
 }
 
 if (empty($document_data)) {
-    api_not_allowed(true);
+    api_not_allowed(true, Display::return_message(get_lang('FileUrlNotFound').'<br/><br/><a href="'.$home_url.'">'.get_lang('ReturnToCourseHomepage').'</a>', 'error', false));
 }
 
 $header_file  = $document_data['path'];
@@ -66,20 +67,21 @@ $file = Security::remove_XSS(urldecode($document_data['path']));
 $file_root = $course_info['path'].'/document'.str_replace('%2F', '/', $file);
 $file_url_sys = api_get_path(SYS_COURSE_PATH).$file_root;
 $file_url_web = api_get_path(WEB_COURSE_PATH).$file_root;
+$home_url   = api_get_path(WEB_PATH);
 
 if (!file_exists($file_url_sys)) {
-    api_not_allowed(true);
+    api_not_allowed(true, Display::return_message(get_lang('FileNotFound').'<br/><br/><a href="'.$home_url.'">'.get_lang('ReturnToCourseHomepage').'</a>', 'error', false));
 }
 
 if (is_dir($file_url_sys)) {
-    api_not_allowed(true);
+    api_not_allowed(true, Display::return_message(get_lang('FileNotFound').'<br/><br/><a href="'.$home_url.'">'.get_lang('ReturnToCourseHomepage').'</a>', 'error', false));
 }
 
 //fix the screen when you try to access a protected course through the url
 $is_allowed_in_course = $_SESSION ['is_allowed_in_course'];
 
 if ($is_allowed_in_course == false) {
-    api_not_allowed(true);
+    api_not_allowed(true, Display::return_message(get_lang('UserNonRegisteredAtTheCourse').'<br/><br/><a href="'.$home_url.'">'.get_lang('ReturnToCourseHomepage').'</a>', 'error', false));
 }
 
 //Check user visibility
@@ -87,7 +89,7 @@ if ($is_allowed_in_course == false) {
 $is_visible = DocumentManager::check_visibility_tree($document_id, api_get_course_id(), api_get_session_id(), api_get_user_id());
 
 if (!api_is_allowed_to_edit() && !$is_visible) {
-    api_not_allowed(true);
+    api_not_allowed(true, Display::return_message(get_lang('FileisHidden').'<br/><br/><a href="'.$home_url.'">'.get_lang('ReturnToCourseHomepage').'</a>', 'error', false));
 }
 
 $pathinfo = pathinfo($header_file);
