@@ -128,7 +128,7 @@ $total_score = 0;
 $total_time = 0;
 $h = get_lang('h');
 
-if (!empty($export_csv)) {
+if ($export_csv || $exportXls) {
     $csv_content[] = array(
         get_lang('ScormLessonTitle'),
         get_lang('ScormStatus'),
@@ -367,7 +367,7 @@ if (is_array($list) && count($list) > 0) {
                                     <td></td>
                                 </tr>';
 
-                    if (!empty($export_csv)) {
+                    if ($export_csv || $exportXls) {
                         $temp = array();
                         $temp[] = $title = Security::remove_XSS($title);
                         $temp[] = Security::remove_XSS(learnpathItem::humanize_status($lesson_status, false));
@@ -692,10 +692,10 @@ if (is_array($list) && count($list) > 0) {
                     $output .= '</tr>';
                 }
 
-                if (!empty($export_csv)) {
+                if ($export_csv || $exportXls) {
                     $temp = array();
-                    $temp[] = api_html_entity_decode($title, ENT_QUOTES);
-                    $temp[] = api_html_entity_decode($my_lesson_status, ENT_QUOTES);
+                    $temp[] = strip_tags($title);
+                    $temp[] = learnpathitem::humanize_status($lesson_status, false);
 
                     if ($row['item_type'] == 'quiz') {
                         if (!$is_allowed_to_edit && $result_disabled_ext_all) {
@@ -916,7 +916,26 @@ $output .= '<tr class="'.$oddclass.'">
 
 $output .= "</table>";
 
-if (!empty($export_csv)) {
+if ($export_csv || $exportXls) {
+    $fileName = '';
+    $CSVMainHehader = array();
+
+    if ($session_id) {
+        $sesionName = api_get_session_name($session_id);
+        $courseName = get_lang('Course') . ' ' . $course_info['name'];
+
+        $CSVMainHehader[] = $sesionName;
+        $CSVMainHehader[] = $courseName;
+
+        $fileName = $sesionName . ' ' . $courseName;
+    } else {
+        $CSVMainHehader[] = $course_info['name'];
+        
+        $fileName = $course_info['name'];
+    }
+    
+    $fileName .= ' ' . date('d-m-Y');
+    
     $temp = array(
         '',
         '',
@@ -930,9 +949,19 @@ if (!empty($export_csv)) {
         $final_score,
         $total_time
     );
+    
     $csv_content[] = $temp;
+    
     ob_end_clean();
-    Export :: export_table_csv($csv_content, 'reporting_learning_path_details');
+    
+    array_unshift($csv_content, array());
+    array_unshift($csv_content, $CSVMainHehader);
+    
+    if ($export_csv) {
+        Export :: export_table_csv_utf8($csv_content, $fileName);
+    } else {
+        Export :: export_table_xls($csv_content, $fileName, 'iso-8859-1');
+    }
     exit;
 }
 
@@ -940,6 +969,6 @@ if ($origin != 'tracking') {
     $output .= "</body></html>";
 }
 
-if (empty($export_csv)) {
+if (!$export_csv && !$exportXls) {
     echo $output;
 }

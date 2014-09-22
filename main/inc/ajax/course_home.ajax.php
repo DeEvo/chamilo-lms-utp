@@ -66,9 +66,7 @@ switch ($action) {
 			echo json_encode($response_data);
         }
         break;
-
-	case 'show_course_information' :
-
+	case 'show_course_information':
 		$language_file = array('course_description');
 		require_once '../global.inc.php';
 
@@ -97,11 +95,10 @@ switch ($action) {
 		    echo get_lang('NoDescription');
 		}
 	    break;
-    /**
-     * @todo this functions need to belong to a class or a special wrapper to process the AJAX petitions from the jqgrid
-     */
     case 'session_courses_lp_default':
-
+        /**
+         * @todo this functions need to belong to a class or a special wrapper to process the AJAX petitions from the jqgrid
+         */
         require_once '../global.inc.php';
         require_once api_get_path(SYS_CODE_PATH).'newscorm/learnpathList.class.php';
 
@@ -135,15 +132,6 @@ switch ($action) {
         $count = 0;
 
         foreach ($course_list as $item) {
-//           var_dump($course_list);Exit;
-//            if(!$item['visibility']) {
-//                echo "xxx";Exit;
-//            }
-//            if (isset($course_id) && !empty($course_id)) {
-//                if ($course_id != $item['id']) {
-//                    continue;
-//                }
-//            }
             $list               = new LearnpathList(api_get_user_id(), $item['code'], $session_id);
             $flat_list          = $list->get_flat_list();
             $lps[$item['code']] = $flat_list;
@@ -223,7 +211,6 @@ switch ($action) {
         $response->records = $count;
         echo json_encode($response);
         break;
-
     case 'session_courses_lp_by_week':
 
         require_once '../global.inc.php';
@@ -266,8 +253,13 @@ switch ($action) {
                 }
             }
 
-            $list               = new LearnpathList(api_get_user_id(),$item['code'], $session_id, 'publicated_on DESC');
-            $flat_list          = $list->get_flat_list();
+            $list = new LearnpathList(
+                api_get_user_id(),
+                $item['code'],
+                $session_id,
+                'publicated_on DESC'
+            );
+            $flat_list = $list->get_flat_list();
             $lps[$item['code']] = $flat_list;
             $item['title'] = Display::url($item['title'],api_get_path(WEB_COURSE_PATH).$item['directory'].'/?id_session='.$session_id,array('target'=>SESSION_LINK_TARGET));
 
@@ -323,23 +315,31 @@ switch ($action) {
 
         $response = new stdClass();
         $i =0;
-        foreach($temp as $key=>$row) {
-            $row = $row['cell'];
-            if (!empty($row)) {
-                if ($key >= $start  && $key < ($start + $limit)) {
-                    $response->rows[$i]['id']= $key;
-                    $response->rows[$i]['cell']=array($row[0], $row[1], $row[2],$row[3]);
-                    $i++;
+
+        if (!empty($temp)) {
+            foreach ($temp as $key => $row) {
+                $row = $row['cell'];
+                if (!empty($row)) {
+                    if ($key >= $start && $key < ($start + $limit)) {
+                        $response->rows[$i]['id'] = $key;
+                        $response->rows[$i]['cell'] = array(
+                            $row[0],
+                            $row[1],
+                            $row[2],
+                            $row[3]
+                        );
+                        $i++;
+                    }
                 }
             }
         }
 
-        if($count > 0 && $limit > 0) {
-            $total_pages = ceil($count/$limit);
+        if ($count > 0 && $limit > 0) {
+            $total_pages = ceil($count / $limit);
         } else {
             $total_pages = 0;
         }
-        $response->total    = $total_pages;
+        $response->total = $total_pages;
         if ($page > $total_pages) {
             $response->page = $total_pages;
         } else {
@@ -348,10 +348,7 @@ switch ($action) {
         $response->records = $count;
         echo json_encode($response);
         break;
-
-
     case 'session_courses_lp_by_course':
-
         require_once '../global.inc.php';
         require_once api_get_path(SYS_CODE_PATH).'newscorm/learnpathList.class.php';
 
@@ -378,7 +375,9 @@ switch ($action) {
             }
         }
 
-        if(!$sidx) $sidx =1;
+        if (!$sidx) {
+            $sidx = 1;
+        }
 
         $start = $limit*$page - $limit;
 
@@ -393,11 +392,15 @@ switch ($action) {
                 }
             }
 
-            $list               = new LearnpathList(api_get_user_id(),$item['code'],$session_id);
-            $flat_list          = $list->get_flat_list();
+            $list = new LearnpathList(
+                api_get_user_id(),
+                $item['code'],
+                $session_id
+            );
+            $flat_list = $list->get_flat_list();
             $lps[$item['code']] = $flat_list;
             $item['title']      = Display::url($item['title'],api_get_path(WEB_COURSE_PATH).$item['directory'].'/?id_session='.$session_id, array('target'=>SESSION_LINK_TARGET));
-            foreach($flat_list as $lp_id => $lp_item) {
+            foreach ($flat_list as $lp_id => $lp_item) {
                 $temp[$count]['id']= $lp_id;
                 $lp_url = api_get_path(WEB_CODE_PATH).'newscorm/lp_controller.php?cidReq='.$item['code'].'&id_session='.$session_id.'&lp_id='.$lp_id.'&action=view';
                 $last_date = Tracking::get_last_connection_date_on_the_course(api_get_user_id(),$item['code'], $session_id, false);
@@ -419,7 +422,7 @@ switch ($action) {
                     $date = '-';
                 }
 
-                 //Checking LP publicated and expired_on dates
+                //Checking LP publicated and expired_on dates
                 if (!empty($lp_item['publicated_on']) && $lp_item['publicated_on'] != '0000-00-00 00:00:00') {
                     if ($now < api_strtotime($lp_item['publicated_on'], 'UTC')) {
                         continue;
@@ -442,26 +445,29 @@ switch ($action) {
         $temp = msort($temp, $sidx, $sord);
 
         $response = new stdClass();
-        $i =0;
-        foreach($temp as $key=>$row) {
-            $row = $row['cell'];
-            if (!empty($row)) {
-                if ($key >= $start  && $key < ($start + $limit)) {
-                    $response->rows[$i]['id']= $key;
-                    $response->rows[$i]['cell']=array($row[0], $row[1], $row[2],$row[3]);
-                    $i++;
+        $i = 0;
+
+        if (!empty($temp)) {
+            foreach($temp as $key=>$row) {
+                $row = $row['cell'];
+                if (!empty($row)) {
+                    if ($key >= $start  && $key < ($start + $limit)) {
+                        $response->rows[$i]['id']= $key;
+                        $response->rows[$i]['cell']=array($row[0], $row[1], $row[2],$row[3]);
+                        $i++;
+                    }
                 }
             }
         }
 
-        if($count > 0 && $limit > 0) {
-            $total_pages = ceil($count/$limit);
+        if ($count > 0 && $limit > 0) {
+            $total_pages = ceil($count / $limit);
         } else {
             $total_pages = 0;
         }
-        $response->total    = $total_pages;
+        $response->total = $total_pages;
         if ($page > $total_pages) {
-            $response->page= $total_pages;
+            $response->page = $total_pages;
         } else {
             $response->page = $page;
         }

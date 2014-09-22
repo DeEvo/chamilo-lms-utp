@@ -94,6 +94,7 @@ $UplAlreadyExists = " already exists.";
 $UplFileSavedAs = "File saved as";
 $UplFileOverwritten = " was overwritten.";
 $CannotCreateDir = "Unable to create the folder.";
+$CannotCreateDirAlreadyExistCourseOrSession = "Unable to create the folder, folder name already exists in Course or Session";
 $UplUpload = "Upload";
 $UplWhatIfFileExists = "If file exists:";
 $UplDoNothing = "Do nothing";

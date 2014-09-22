@@ -25,11 +25,16 @@ require_once api_get_path(SYS_CODE_PATH).'survey/survey.lib.php';
 
 api_block_anonymous_users();
 
-if (!api_is_allowed_to_create_course() && !api_is_session_admin() && !api_is_drh() && !api_is_course_manager_admin()) {
-    // Check if the user is tutor of the course
-    $user_course_status = CourseManager::get_tutor_in_course_status(api_get_user_id(), api_get_course_id());
-    if ($user_course_status != 1) {
-        api_not_allowed(true);
+if (!api_is_platform_admin()) {
+    if (!api_is_allowed_to_create_course() && !api_is_session_admin() && !api_is_drh() && !api_is_course_manager_admin()) {
+        // Check if the user is tutor of the course
+        $user_course_status = CourseManager::get_tutor_in_course_status(
+            api_get_user_id(),
+            api_get_course_id()
+        );
+        if ($user_course_status != 1) {
+            api_not_allowed(true);
+        }
     }
 }
 
@@ -42,8 +47,9 @@ function show_image(image,width,height) {
 </script>';
 
 $export_csv = isset ($_GET['export']) && $_GET['export'] == 'csv' ? true : false;
+$exportXls = isset ($_GET['export']) && $_GET['export'] == 'xls' ? true : false;
 
-if ($export_csv) {
+if ($export_csv || $exportXls) {
 	ob_start();
 }
 $csv_content = array();
@@ -334,7 +340,8 @@ if (!empty($student_id)) {
 
 	echo '<a href="javascript: void(0);" onclick="javascript: window.print();">'.Display::return_icon('printer.png', get_lang('Print'),'',ICON_SIZE_MEDIUM).'</a>';
 	echo '<a href="' . api_get_self() . '?' . Security :: remove_XSS($_SERVER['QUERY_STRING']) . '&export=csv">'.Display::return_icon('export_csv.png', get_lang('ExportAsCSV'),'',ICON_SIZE_MEDIUM).'</a> ';
-	if (!empty ($user_info['email'])) {
+    echo '<a href="' . api_get_self() . '?' . Security :: remove_XSS($_SERVER['QUERY_STRING']) . '&export=xls">'.Display::return_icon('export_excel.png', get_lang('ExportAsXLS'),'',ICON_SIZE_MEDIUM).'</a> ';
+    if (!empty ($user_info['email'])) {
 		$send_mail = '<a href="mailto:'.$user_info['email'].'">'.Display :: return_icon('mail_send.png', get_lang('SendMail'),'',ICON_SIZE_MEDIUM).'</a>';
 	} else {
 		$send_mail = Display :: return_icon('mail_send_na.png', get_lang('SendMail'),'',ICON_SIZE_MEDIUM);
@@ -728,14 +735,14 @@ if (empty($_GET['details'])) {
     $t_lp = Database :: get_course_table(TABLE_LP_MAIN);
 
     // csv export headers
-    $csv_content[] = array ();
-    $csv_content[] = array (
-    	get_lang('Learnpath', ''),
-    	get_lang('Time', ''),
-    	get_lang('AverageScore', ''),
-    	get_lang('LatestScore', ''),
-    	get_lang('Progress', ''),
-    	get_lang('LastConnexion', '')
+    $csv_content[] = array();
+    $csv_content[] = array(
+    	get_lang('Learnpath'),
+    	get_lang('Time'),
+    	get_lang('AverageScore'),
+    	get_lang('LatestAttemptAverageScore'),
+    	get_lang('Progress'),
+    	get_lang('LastConnexion')
     );
 
     if (empty($session_id)) {
@@ -837,11 +844,9 @@ if (empty($_GET['details'])) {
             }
     		echo Display::tag('td', $score_latest);
 
-    		if (is_numeric($progress)) {
-    			$progress = $progress.'%';
-    		} else {
-    			$progress = '-';
-    		}
+            if ($progress == "0%") {
+                $progress = '-';
+            }
 
     		echo Display::tag('td', $progress);
     	    //Do not change with api_convert_and_format_date, because this value came from the lp_item_view table
@@ -888,11 +893,12 @@ if (empty($_GET['details'])) {
 			</tr>
 		<?php
 
-		$csv_content[] = array ();
-		$csv_content[] = array (
+        $csv_content[] = array();
+        $csv_content[] = array(
 			get_lang('Exercices'),
-			get_lang('Score'),
-			get_lang('Attempts')
+            get_lang('LearningPath'),
+            get_lang('AvgCourseScore'),
+            get_lang('Attempts')
 		);
 
 		$t_quiz = Database :: get_course_table(TABLE_QUIZ_TEST);
@@ -919,12 +925,6 @@ if (empty($_GET['details'])) {
                     $lp_name = '-';
                 }
                 $lp_name = (!empty($lp_name))? $lp_name: get_lang('NoLearnpath');
-				$csv_content[] = array (
-					$exercices['title'],
-					$score_percentage . '%',
-					$count_attempts
-
-				);
 
 				if ($i % 2) $css_class = 'row_odd';
 				else $css_class = 'row_even';
@@ -977,6 +977,14 @@ if (empty($_GET['details'])) {
 				$data_exercices[$i][] = $exercices['title'];
 				$data_exercices[$i][] = $score_percentage . '%';
 				$data_exercices[$i][] = $count_attempts;
+
+                $csv_content[] = array(
+                    $exercices['title'],
+                    $lp_name,
+                    $score_percentage,
+                    $count_attempts,
+                );
+
 				$i++;
 
 			}
@@ -984,7 +992,6 @@ if (empty($_GET['details'])) {
 			echo '<tr><td colspan="6">'.get_lang('NoExercise').'</td></tr>';
 		}
 		echo '</table>';
-
 
         //@when using sessions we do not show the survey list
         if (empty($session_id)) {
@@ -1041,30 +1048,34 @@ if (empty($_GET['details'])) {
 		$documents				= Tracking::count_student_downloaded_documents($student_id, $course_code, $session_id);
 		$uploaded_documents		= Tracking::count_student_uploaded_documents($student_id, $course_code, $session_id);
 
-		$csv_content[] = array (
-			get_lang('Student_publication'),
-			$nb_assignments
-		);
-		$csv_content[] = array (
-			get_lang('Messages'),
-			$messages
-		);
-		$csv_content[] = array (
-			get_lang('LinksDetails'),
-			$links
-		);
-		$csv_content[] = array (
-			get_lang('DocumentsDetails'),
-			$documents
-		);
-		$csv_content[] = array (
-			get_lang('UploadedDocuments'),
-			$uploaded_documents
-		);
-		$csv_content[] = array (
-			get_lang('ChatLastConnection'),
-			$chat_last_connection
-		);
+        $csv_content[] = array(
+            get_lang('OtherTools')
+        );
+
+        $csv_content[] = array(
+            get_lang('Student_publication'),
+            $nb_assignments
+        );
+        $csv_content[] = array(
+            get_lang('Messages'),
+            $messages
+        );
+        $csv_content[] = array(
+            get_lang('LinksDetails'),
+            $links
+        );
+        $csv_content[] = array(
+            get_lang('DocumentsDetails'),
+            $documents
+        );
+        $csv_content[] = array(
+            get_lang('UploadedDocuments'),
+            $uploaded_documents
+        );
+        $csv_content[] = array(
+            get_lang('ChatLastConnection'),
+            $chat_last_connection
+        );
 ?>
 		<tr>
 			<th colspan="2"><?php echo get_lang('OtherTools'); ?></th>
@@ -1101,9 +1112,13 @@ if (empty($_GET['details'])) {
 <?php
 	} //end details
 }
-if ($export_csv) {
+if ($export_csv || $exportXls) {
 	ob_end_clean();
-	Export::export_table_csv_utf8($csv_content, 'reporting_student');
+    if ($export_csv) {
+	    Export::export_table_csv_utf8($csv_content, 'reporting_student');
+    } else {
+        Export::export_table_xls($csv_content, 'reporting_student', 'iso-8859-1');
+    }
 	exit;
 }
 /*		FOOTER  */

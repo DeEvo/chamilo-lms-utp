@@ -137,6 +137,44 @@ class Tracking
     }
 
     /**
+     * @param $courseCode
+     * @param int $sessionId
+     * @return mixed
+     */
+    public static function getTimeAverageSpentOnTheCourse($courseCode, $sessionId = 0) {
+        $courseCode = Database::escape_string($courseCode);
+        $sessionId  = intval($sessionId);
+
+        $tableTrackCourse = Database::get_statistic_table(TABLE_STATISTIC_TRACK_E_COURSE_ACCESS);
+
+        $sessionCondition = '';
+        if ($sessionId !== 0) {
+            $sessionCondition = ' AND session_id = ' . $sessionId;
+        }
+
+        $sql = "SELECT SUM(UNIX_TIMESTAMP(logout_course_date) - UNIX_TIMESTAMP(login_course_date)) as seconds_sum
+                FROM $tableTrackCourse
+                WHERE UNIX_TIMESTAMP(logout_course_date) > UNIX_TIMESTAMP(login_course_date) AND
+                course_code='$courseCode'
+                $sessionCondition
+                 GROUP BY session_id;";
+
+        $queryResponse = Database::query($sql);
+        $i = 0;
+        $secondsSum = 0;
+        $secondsAverage = 0;
+        if (Database::num_rows($queryResponse) > 0) {
+            if ($row = Database::fetch_array($queryResponse)) {
+                $secondsSum += $row['seconds_sum'];
+                $i++;
+            }
+            $secondsAverage = round($secondsSum / $i, 2);
+        }
+
+        return $secondsAverage;
+    }
+
+    /**
      * Get first connection date for a student
      * @param    int                  Student id
      * @return    string|bool     Date format long without day or false if there are no connections
@@ -673,7 +711,7 @@ class Tracking
                         $teacher['id_user'],
                         $teacher['id_session']
                        );
-   //error_log($query);
+
             $rs = Database::query($query);
             $totalDocuments = 0;
             if ($rs) {
@@ -949,8 +987,14 @@ class Tracking
                 $fieldCondition = " AND field_id = $fieldId AND field_value = '$fieldValue'";
             }
 
+            $sessionFilter = "";
+            if (!empty($session_id)) {
+                $sessionFilter = " AND lp.session_id in (0, $session_id)";
+            }
+
             $sql = "SELECT DISTINCT lp.id FROM $tbl_course_lp lp $fieldJoin
-                    WHERE lp.c_id = {$course_info['real_id']} $condition_lp $fieldCondition ";
+                    WHERE lp.c_id = {$course_info['real_id']} $condition_lp $fieldCondition $sessionFilter";
+
             $res_count_lp = Database::query($sql);
 
             // count the number of learning paths
@@ -1004,9 +1048,9 @@ class Tracking
                 if (!$return_array) {
                     $avg_progress = round($sum / $number_items, 1);
                     if ($divideWithUsers) {
-                        $avg_progress = round($avg_progress / count($student_id), 2).'%';
+                        $avg_progress = round($avg_progress / count($student_id), 2);
                     }
-                    return $avg_progress.'%';
+                    return $avg_progress;
                 } else {
                     return array($sum, $number_items);
                 }
@@ -1342,7 +1386,7 @@ class Tracking
                         return array($global_result, $lp_with_quiz);
                     }
                 } else {
-                    return '-';
+                    return 0;
                 }
             }
         }
@@ -3914,8 +3958,8 @@ class Tracking
                 FROM $ttrack_exercises te
                 INNER JOIN $ttrack_attempt ta ON ta.exe_id = te.exe_id
                 INNER JOIN $tquiz q ON q.id = te.exe_exo_id AND q.c_id = $courseIdx
-                INNER JOIN $tquiz_question qq ON qq.id = ta.question_id
-                                                AND qq.c_id = $courseIdx
+                INNER JOIN $tquiz_question qq
+                ON qq.id = ta.question_id AND qq.c_id = $courseIdx
                 $fieldType
                 WHERE te.exe_cours_id = '$whereCourseCode' ".(empty($whereSessionParams)?'':"AND te.session_id IN ($whereSessionParams)")."
                   $where $order $limit";
@@ -3947,30 +3991,39 @@ class Tracking
             $sqlQuestions = "SELECT tq.c_id, tq.id as question_id, tq.question, tqa.id_auto,
                                     tqa.answer, tqa.correct, tq.position, tqa.id_auto as answer_id
                                FROM $tquiz_question tq
-                               INNER JOIN $tquiz_answer tqa ON tqa.question_id =tq.id and tqa.c_id = tq.c_id
-                               WHERE tq.c_id = $courseIdx AND tq.id IN (".implode(',',$questionIds).")";
+                               INNER JOIN $tquiz_answer tqa
+                               ON tqa.question_id = tq.id and tqa.c_id = tq.c_id
+                               WHERE
+                                  tq.c_id = $courseIdx AND
+                                  tq.id IN (".implode(',',$questionIds).")";
 
             $resQuestions = Database::query($sqlQuestions);
             $answer = array();
             $question = array();
-            while ($rowQuestion = Database::fetch_assoc($resQuestions)) {
-                $questionId = $rowQuestion['question_id'];
-                $answerId = $rowQuestion['answer_id'];
-                $answer[$questionId][$answerId] = array(
-                    'position' => $rowQuestion['position'],
-                    'question' => stripHtmlComments(strip_tags($rowQuestion['question'], '<img>')),
-                    'answer' => stripHtmlComments(strip_tags($rowQuestion['answer'], '<img>')),
-                    'correct' => $rowQuestion['correct']
-                );
-                $question[$questionId]['question'] = stripHtmlComments(strip_tags($rowQuestion['question'], '<img>'));
-
+            if (Database::num_rows($resQuestions)) {
+                while ($rowQuestion = Database::fetch_assoc($resQuestions)) {
+                    $questionId = $rowQuestion['question_id'];
+                    $answerId = $rowQuestion['answer_id'];
+                    $answer[$questionId][$answerId] = array(
+                        'position' => $rowQuestion['position'],
+                        'question' => stripHtmlComments(strip_tags($rowQuestion['question'], '<img>')),
+                        'answer' => stripHtmlComments(strip_tags($rowQuestion['answer'], '<img>')),
+                        'correct' => $rowQuestion['correct']
+                    );
+                    $question[$questionId]['question'] = stripHtmlComments(strip_tags($rowQuestion['question'], '<img>'));
+                }
             }
 
             // Now fill users data
-            $sqlUsers = "SELECT user_id, username, lastname, firstname FROM $tuser WHERE user_id IN (".implode(',',$userIds).")";
+            $sqlUsers = "SELECT user_id, username, lastname, firstname
+                         FROM $tuser WHERE user_id IN (".implode(',', $userIds).")";
             $resUsers = Database::query($sqlUsers);
-            while ($rowUser = Database::fetch_assoc($resUsers)) {
-                $users[$rowUser['user_id']] = $rowUser;
+
+            $users = array();
+            if (Database::num_rows($resUsers)) {
+                while ($rowUser = Database::fetch_assoc($resUsers)) {
+                    $users[$rowUser['user_id']] = $rowUser;
+                }
             }
 
             foreach ($data as $id => $row) {
@@ -4341,8 +4394,10 @@ class Tracking
         $sessionCategories = SessionManager::get_all_session_category();
         $newSessionCategories = array();
         $newSessionCategories[''] = null;
-        foreach ($sessionCategories as $category) {
-            $newSessionCategories[$category['id']] = $category['name'];
+        if ($sessionCategories !== false) {
+            foreach ($sessionCategories as $category) {
+                $newSessionCategories[$category['id']] = $category['name'];
+            }
         }
 
         if (empty($sessionId)) {
@@ -4475,7 +4530,7 @@ class Tracking
                 $firstName = $coachInfo['firstname'];
                 $lastName = $coachInfo['lastname'];
             }
-            //var_dump($session);
+
             $gridData[] = array(
                 'session_id' => $session['id'],
                 'course_id' => $course['code'],
@@ -4520,6 +4575,7 @@ class Tracking
     {
         $courseId = intval($courseId);
         $sessionId = intval($sessionId);
+        $sessionSum = 0;
 
         //tables
         $tblSessionCourseUser = Database::get_main_table(TABLE_MAIN_SESSION_COURSE_USER);
@@ -4553,8 +4609,10 @@ class Tracking
         $sessionCategories = SessionManager::get_all_session_category();
         $newSessionCategories = array();
         $newSessionCategories[''] = null;
-        foreach ($sessionCategories as $category) {
-            $newSessionCategories[$category['id']] = $category['name'];
+        if ($sessionCategories !== false) {
+            foreach ($sessionCategories as $category) {
+                $newSessionCategories[$category['id']] = $category['name'];
+            }
         }
 
         if (empty($sessionId)) {
@@ -4689,6 +4747,7 @@ class Tracking
             }
             //var_dump($session);
             $gridData[] = array(
+
                 'session_id' => $session['id'],
                 'course_id' => $course['code'],
                 'category' => $newSessionCategories[$session['session_category_id']],
@@ -4878,6 +4937,9 @@ class Tracking
         );
     }
 
+    /**
+     * @return array
+     */
     public static function getCustomTags()
     {
         $lpExtraField = 'Tipo';
@@ -5496,10 +5558,10 @@ class TrackingCourseLog
     	return array('table_name' => $table_name,'link_tool' => $link_tool,'id_tool' => $id_tool);
     }
 
-    static function display_additional_profile_fields() {
+    static function display_additional_profile_fields()
+    {
     	// getting all the extra profile fields that are defined by the platform administrator
     	$extra_fields = UserManager :: get_extra_fields(0,50,5,'ASC');
-
 
     	// creating the form
     	$return = '<form action="courseLog.php" method="get" name="additional_profile_field_form" id="additional_profile_field_form">';
@@ -5657,7 +5719,7 @@ class TrackingCourseLog
      */
     static function get_user_data($from, $number_of_items, $column, $direction)
     {
-    	global $user_ids, $course_code, $additional_user_profile_info, $export_csv, $is_western_name_order, $csv_content, $session_id, $_configuration;
+    	global $user_ids, $course_code, $additional_user_profile_info, $export_csv, $exportXls, $is_western_name_order, $csv_content, $session_id, $_configuration;
 
     	$course_code        = Database::escape_string($course_code);
     	$tbl_user           = Database::get_main_table(TABLE_MAIN_USER);
@@ -5812,7 +5874,7 @@ class TrackingCourseLog
 
             $users[] = $user_row;
 
-    		if ($export_csv) {
+    		if ($export_csv || $exportXls) {
     		    if (empty($session_id)) {
                     $user_row = array_map('strip_tags', $user_row);
     			    unset($user_row[14]);

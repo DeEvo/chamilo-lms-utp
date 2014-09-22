@@ -270,7 +270,7 @@ switch ($action) {
             $work_parents = getWorkList($work_id, $my_folder_data, $add_query);
         }
 
-        if (api_is_allowed_to_edit()) {
+        if (api_is_allowed_to_edit() || api_is_course_admin()) {
             $userList = getWorkUserList($course_code, $session_id);
 
             // Work list

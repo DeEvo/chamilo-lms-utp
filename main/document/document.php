@@ -98,6 +98,7 @@ $course_code = api_get_course_id();
 $to_group_id = api_get_group_id();
 
 $is_allowed_to_edit = api_is_allowed_to_edit(null, true);
+$isCoach = api_is_coach();
 $group_member_with_upload_rights = false;
 
 // If the group id is set, we show them group documents
@@ -408,11 +409,38 @@ if ($tool_visibility == '0' && $to_group_id == '0' && !($is_allowed_to_edit || $
 
 $htmlHeadXtra[] = "<script>
 function confirmation (name) {
+    var name = renameFileNameInSession(name);
     if (confirm(\" ".get_lang("AreYouSureToDelete")." \"+ name + \" ?\")) {
         return true;
     } else {
         return false;
     }
+}
+
+/**
+* rename name according to these patterns (file = a__123__.pdf) (folder = directory__123__)
+*/
+function renameFileNameInSession(name) {
+    var rename = name;
+    var patt = /\w*__(\d*)__/;
+    var result = patt.test(name);
+
+    if (result) {
+        var array = new Array();
+        array = name.split('__');
+        rename = array[0];
+
+        // File
+        var patronFile = /\w*__(\d*)__\.\w{3,4}/;
+        var resultFile = patronFile.test(name);
+        if (resultFile) {
+            var array = new Array();
+            array = name.split('__');
+            rename = array[0] + array[2];
+        }
+    }
+
+    return rename;
 }
 </script>";
 
@@ -426,7 +454,7 @@ if ($to_group_id != 0 && $curdirpath == '/') {
 //@todo check this validation for coaches
 //if (!$is_allowed_to_edit || api_is_coach()) { before
 
-if (!$is_allowed_to_edit && api_is_coach()) {
+if (!$is_allowed_to_edit && $isCoach) {
     if ($curdirpath != '/' && !(DocumentManager::is_visible($curdirpath, $_course, $session_id, 'folder'))) {
         api_not_allowed(true);
     }
@@ -594,7 +622,7 @@ if (
     if (isset($_GET['move']) && $_GET['move'] != '') {
         $my_get_move = intval($_REQUEST['move']);
 
-        if (api_is_coach()) {
+        if ($isCoach) {
             if (!DocumentManager::is_visible_by_id($my_get_move, $course_info, $session_id, api_get_user_id())) {
                 api_not_allowed();
             }
@@ -640,7 +668,7 @@ if (
             }
         }
 
-        if (api_is_coach()) {
+        if ($isCoach) {
             if (!DocumentManager::is_visible_by_id($_POST['move_file'], $_course, $session_id, api_get_user_id())) {
                 api_not_allowed();
             }
@@ -695,7 +723,7 @@ if (
 if ($is_allowed_to_edit || $group_member_with_upload_rights || is_my_shared_folder(api_get_user_id(), $curdirpath, $session_id)) {
     if (isset($_GET['deleteid'])) {
         if (!$is_allowed_to_edit) {
-            if (api_is_coach()) {
+            if ($isCoach) {
                 if (!DocumentManager::is_visible_by_id($_GET['deleteid'], $_course, $session_id, api_get_user_id())) {
                     api_not_allowed();
                 }
@@ -825,23 +853,19 @@ if ($is_allowed_to_edit || $group_member_with_upload_rights || is_my_shared_fold
             }
             $added_slash = ($curdirpath == '/') ? '' : '/';
             $dir_name = $curdirpath.$added_slash.replace_dangerous_char($post_dir_name);
+
             $dir_name = disable_dangerous_file($dir_name);
-            $dir_check = $base_work_dir.$dir_name;
+            $dir_name = renameDirectoryInSession($dir_name);
 
-
-            if (!is_dir($dir_check)) {
+            if ($dir_name == '') {
+                Display::display_error_message(get_lang('CannotCreateDirAlreadyExistCourseOrSession'));
+            } else {
                 $created_dir = create_unexisting_directory($_course, api_get_user_id(), $session_id, $to_group_id, $to_user_id, $base_work_dir, $dir_name, $post_dir_name);
-
                 if ($created_dir) {
                     Display::display_confirmation_message('<span title="'.$created_dir.'">'.get_lang('DirCr').'</span>', false);
-                    // Uncomment if you want to enter the created dir
-                    //$curdirpath = $created_dir;
-                    //$curdirpathurl = urlencode($curdirpath);
                 } else {
                     Display::display_error_message(get_lang('CannotCreateDir'));
                 }
-            } else {
-                Display::display_error_message(get_lang('CannotCreateDir'));
             }
         }
     }
@@ -865,7 +889,7 @@ if ($is_allowed_to_edit) {
         }
 
         if (!$is_allowed_to_edit) {
-            if (api_is_coach()) {
+            if ($isCoach) {
                 if (!DocumentManager::is_visible_by_id($update_id, $_course, $session_id, api_get_user_id())) {
                     api_not_allowed();
                 }

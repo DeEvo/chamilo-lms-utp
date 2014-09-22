@@ -9,6 +9,7 @@
  *
  *	@package chamilo.work
  */
+$language_file = array('document');
 require_once '../inc/global.inc.php';
 require_once 'work.lib.php';
 
@@ -84,7 +85,13 @@ if (!empty($course_info['real_id'])) {
             $title = str_replace(' ', '_', $title);
             event_download($title);
             if (Security::check_abs_path($full_file_name, api_get_path(SYS_COURSE_PATH).api_get_course_path().'/')) {
-                DocumentManager::file_send_for_download($full_file_name, true, $title);
+                if (!is_file($full_file_name)) {
+                    Display::display_header(null);
+                    Display::display_introduction_section(TOOL_STUDENTPUBLICATION);
+                    Display::display_warning_message(get_lang('FileNotFound'));
+                } else {
+                    DocumentManager::file_send_for_download($full_file_name, true, $title);
+                }
             }
         } else {
             api_not_allowed();

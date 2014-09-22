@@ -28,7 +28,9 @@ require_once api_get_path(LIBRARY_PATH).'export.lib.inc.php';
 $session_id  = isset($_REQUEST['id_session']) && !empty($_REQUEST['id_session']) ? intval($_REQUEST['id_session']) : api_get_session_id();
 
 $export_csv = isset($_GET['export']) && $_GET['export'] == 'csv' ? true : false;
-if ($export_csv) {
+$exportXls = isset($_GET['export']) && $_GET['export'] == 'xls' ? true : false;
+
+if ($export_csv || $exportXls) {
 	ob_start();
 }
 $csv_content = array();
@@ -79,6 +81,8 @@ echo '<a href="javascript: void(0);" onclick="javascript: window.print();">
 '.Display::return_icon('printer.png',get_lang('Print'),'',ICON_SIZE_MEDIUM).'</a>';
 echo '<a href="'.api_get_self().'?export=csv&'.Security::remove_XSS($_SERVER['QUERY_STRING']).'">
 '.Display::return_icon('export_csv.png',get_lang('ExportAsCSV'),'',ICON_SIZE_MEDIUM).'</a>';
+echo '<a href="'.api_get_self().'?export=xls&'.Security::remove_XSS($_SERVER['QUERY_STRING']).'">
+'.Display::return_icon('export_excel.png',get_lang('ExportAsXLS'),'',ICON_SIZE_MEDIUM).'</a>';
 echo '</div>';
 
 echo '<div class="clear"></div>';
@@ -94,7 +98,7 @@ echo Display::page_subheader('<h3>'.Display::return_icon('learnpath.png', get_la
 $list = learnpath :: get_flat_ordered_items_list($lp_id, 0, $course_info['real_id']);
 
 $origin = 'tracking';
-if ($export_csv) {
+if ($export_csv || $exportXls) {
 	require_once api_get_path(SYS_CODE_PATH).'newscorm/lp_stats.php';
 	//Export :: export_table_csv($csv_content, 'reporting_student');
 } else {

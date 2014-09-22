@@ -89,6 +89,7 @@ $UplAlreadyExists = "¡ ya existe !";
 $UplFileSavedAs = "Archivo guardado como";
 $UplFileOverwritten = "fue sobreescrito";
 $CannotCreateDir = "¡ No se puede crear el directorio !";
+$CannotCreateDirAlreadyExistCourseOrSession = "¡ No se puede crear el directorio !, el nombre del directorio ya existe en (Curso o Sección)";
 $UplUpload = "Enviar";
 $UplWhatIfFileExists = "Si ya existe el archivo:";
 $UplDoNothing = "Hacer nada";

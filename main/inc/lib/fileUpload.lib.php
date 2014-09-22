@@ -365,13 +365,12 @@ function handle_uploaded_document(
                     // init change name automatic
                     $pathDirectory = str_replace($file_path, '/', $store_path);
                     $fileDirectory = str_replace($pathDirectory,'',$store_path);
-                    $fileFlag = uniqueFileinDir($pathDirectory, $fileDirectory);
-                    // setting
+                    $fileFlag = renameFileNameInSession($pathDirectory, $fileDirectory);
                     $file_path = str_replace($fileDirectory, $fileFlag, $file_path);
                     $store_path = str_replace($fileDirectory, $fileFlag,$store_path);
                     // end change name automatic
 
-					if (file_exists($store_path)) {
+					if (file_exists($store_path) || $fileFlag == '') {
 					    if ($output) {
 						  Display::display_error_message($clean_name.' '.get_lang('UplAlreadyExists'));
 						}
@@ -434,6 +433,134 @@ function uniqueFileinDir($path, $file)
     }
     return $fileDefault;
 }
+
+/**
+ * Search if id_session existis in file name
+ * @param $path
+ * @param $file1
+ * @return string filename
+ */
+function renameFileNameInSession($path, $file)
+{
+    $fileSession = '';
+    $sessionId = api_get_session_id();
+    $cursoId = api_get_course_int_id();
+
+    // fileUniqueSession
+    $ext = pathinfo($path . $file, PATHINFO_EXTENSION);
+    $fileLessExt = str_replace(".$ext", '', $file);
+    $fileUniqueSession = $fileLessExt . "__{$sessionId}__.{$ext}";
+
+    $path = (substr($path, -1, 1) != '/') ? $path . '/' : $path;
+    $formatFileSeach  = (substr($file, -1, 1) != '/') ? "/{$file}" : $file;
+
+    if ($sessionId == 0) {
+        // The query checks if a file of name a.pdf exists in the
+        // course or of name a__123__.pdf in any session (where 123 is a
+        // session ID)
+        $fileSession = $file;
+        $fileQuery = "AND path REGEXP '^/{$fileLessExt}\_\_[0-9]+\_\_\.{$ext}$' ";
+        $status = searchFileInCurso($cursoId, $formatFileSeach, $fileQuery);
+        if (true == $status) {
+            $fileSession = '';
+        }
+    } else if ($sessionId > 0 && !empty($path) && !empty($file)) {
+        // The query checks if a file of name a.pdf exists in the
+        // course or of name a__123__.pdf in the current session (where 123 is 
+        // the session ID)
+        $fileSession = $fileUniqueSession;
+        $fileQuery = "AND  session_id = '$sessionId' AND path = '$fileUniqueSession' ";
+        $status = searchFileInCurso($cursoId, $formatFileSeach, $fileQuery);
+        if (true == $status) {
+            $fileSession = '';
+        }
+    }
+
+    return $fileSession;
+}
+
+/**
+ * @param string $path
+ */
+function renameDirectoryInSession($pathDir) {
+    $fileSession = '';
+    $sessionId = api_get_session_id();
+    $cursoId = api_get_course_int_id();
+
+    $fileUniqueSession = $pathDir . "__{$sessionId}__";
+
+    if ($sessionId == 0) {
+        // The query checks if a folder of name abc exists in the
+        // course or of name abc__123__ in any session (where 123 is a session
+        // ID)
+        $fileSession = $pathDir;
+        $fileQuery = "AND path REGEXP '^{$pathDir}\_\_[0-9]+\_\_$' ";
+        $status = searchFileInCurso($cursoId, $pathDir, $fileQuery, 'folder');
+        if (true == $status) {
+            $fileSession = '';
+        }
+    } else if ($sessionId > 0 && !empty($pathDir)) {
+        // The query checks if a folder of name abc exists in the
+        // course or of name abc__123__ in the current session (where 123 is the
+        // session ID)
+        $fileSession = $fileUniqueSession;
+        $fileQuery = "AND  session_id = '$sessionId' AND path = '$fileUniqueSession' ";
+        $status = searchFileInCurso($cursoId, $pathDir, $fileQuery, 'folder');
+        if (true == $status) {
+            $fileSession = '';
+        }
+    }
+
+    return $fileSession;
+}
+
+/**
+ * @param int $cursoId id
+ * @param string $filePath path file name
+ * @param boolean $searchInCurso true search file in course. false: search in all files (that session's)
+ * @param string $filetype identifies the type of document
+ * @return bool status of search
+ */
+function searchFileInCurso($cursoId, $filePath, $fileQuery, $filetype = 'file') {
+    $flag = false;
+    $tableDocument = Database::get_course_table(TABLE_DOCUMENT);
+    $count = 0;
+    $count2 = 0;
+
+    if ('file' == $filetype) {
+        $sqlQuery = "SELECT id FROM $tableDocument WHERE c_id ='$cursoId' AND filetype = '$filetype' AND path = '$filePath' ";
+        $sqlResult = Database::query($sqlQuery);
+        $count = Database::num_rows($sqlResult);
+
+        if ($count == 0) {
+            $sqlQuery2 = "SELECT id FROM $tableDocument WHERE c_id ='$cursoId' AND filetype = '$filetype' $fileQuery ";
+            $sqlResult2 = Database::query($sqlQuery2);
+            $count2 = Database::num_rows($sqlResult2);
+        }
+
+    } elseif('folder' == $filetype) {
+        $sqlQuery = "SELECT id FROM $tableDocument WHERE c_id ='$cursoId' AND filetype = '$filetype' AND path = '$filePath' ";
+        $sqlResult = Database::query($sqlQuery);
+        $count = Database::num_rows($sqlResult);
+
+        if ($count == 0) {
+            if ('' == $fileQuery) {
+
+            } else {
+                $sqlQuery2 = "SELECT id FROM $tableDocument WHERE c_id ='$cursoId' AND filetype = '$filetype' $fileQuery ";
+                $sqlResult2 = Database::query($sqlQuery2);
+                $count2 = Database::num_rows($sqlResult2);
+            }
+        }
+    }
+
+    if($count > 0 || $count2 > 0) {
+        $flag = true;
+    }
+
+    return $flag;
+}
+
 /**
  * Checks if there is enough place to add a file on a directory
  * on the base of a maximum directory size allowed
@@ -451,8 +578,8 @@ function uniqueFileinDir($path, $file)
 function enough_size($file_size, $dir, $max_dir_space)
 {
     // If the directory is the archive directory, safely ignore the size limit
-    if (api_get_path(SYS_ARCHIVE_PATH) == $dir) { 
-        return true; 
+    if (api_get_path(SYS_ARCHIVE_PATH) == $dir) {
+        return true;
     }
 
     if ($max_dir_space) {
@@ -699,7 +826,7 @@ function unzip_uploaded_file($uploaded_file, $upload_path, $base_work_dir, $max_
 			return api_failure::set_failure('not_enough_space');
 		}
 
-		// It happens on Linux that $upload_path sometimes doesn't start with '/'
+		// It happens on Linux that $fupload_path sometimes doesn't start with '/'
 		if ($upload_path[0] != '/' && substr($base_work_dir,-1,1) != '/') {
 			$upload_path = '/'.$upload_path;
 		}

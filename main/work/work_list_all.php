@@ -28,7 +28,7 @@ if (empty($my_folder_data)) {
 
 $work_data = get_work_assignment_by_id($workId);
 
-if (!api_is_allowed_to_edit()) {
+if (!api_is_allowed_to_edit() && !api_is_course_admin()) {
     api_not_allowed(true);
 }
 
@@ -36,6 +36,7 @@ $tool_name = get_lang('StudentPublications');
 $group_id = api_get_group_id();
 $courseInfo = api_get_course_info();
 $htmlHeadXtra[] = api_get_jqgrid_js();
+$sessionId = api_get_session_id();
 
 if (!empty($group_id)) {
     $group_properties  = GroupManager :: get_group_properties($group_id);
@@ -104,8 +105,19 @@ $documentsAddedInWork = getAllDocumentsFromWorkToString($workId, $courseInfo);
 echo '<div class="actions">';
 echo '<a href="'.api_get_path(WEB_CODE_PATH).'work/work.php?'.api_get_cidreq().'&origin='.$origin.'&gradebook='.$gradebook.'">'.Display::return_icon('back.png', get_lang('BackToWorksList'),'',ICON_SIZE_MEDIUM).'</a>';
 if (api_is_allowed_to_session_edit(false, true) && !empty($workId)) {
-    echo '<a href="'.api_get_path(WEB_CODE_PATH).'work/upload.php?'.api_get_cidreq().'&id='.$workId.'&origin='.$origin.'&gradebook='.$gradebook.'">';
-    echo Display::return_icon('upload_file.png', get_lang('UploadADocument'), '', ICON_SIZE_MEDIUM).'</a>';
+    $allowUpload = true;
+
+    if (!empty($sessionId)) {
+        if ($sessionId != $my_folder_data['session_id']) {
+            $allowUpload = false;
+        }
+    }
+
+    if ($allowUpload) {
+        echo '<a href="' . api_get_path(WEB_CODE_PATH) . 'work/upload.php?' . api_get_cidreq() . '&id=' . $workId . '&origin=' . $origin . '&gradebook=' . $gradebook . '">';
+        echo Display::return_icon('upload_file.png', get_lang('UploadADocument'), '', ICON_SIZE_MEDIUM) . '</a>';
+    }
+
     if (ADD_DOCUMENT_TO_WORK) {
         echo '<a href="'.api_get_path(WEB_CODE_PATH).'work/add_document.php?'.api_get_cidreq().'&id='.$workId.'">';
         echo Display::return_icon('new_document.png', get_lang('AddDocument'), '', ICON_SIZE_MEDIUM).'</a>';

@@ -1446,7 +1446,7 @@ function get_count_work($work_id, $onlyMeUserId = null, $notMeUserId = null)
     $is_allowed_to_edit = api_is_allowed_to_edit(null, true);
 
     $session_id     = api_get_session_id();
-    $condition_session  = api_get_session_condition($session_id);
+    $condition_session  = empty($session_id) ? '' : api_get_session_condition($session_id, true, true);
 
     $course_id      = api_get_course_int_id();
     $group_id       = api_get_group_id();
@@ -1604,9 +1604,9 @@ function getWorkListTeacher($start, $limit, $column, $direction, $where_conditio
 
     $course_id          = api_get_course_int_id();
     $session_id         = api_get_session_id();
-    $condition_session  = api_get_session_condition($session_id);
+    $condition_session  = api_get_session_condition($session_id, true, true);
     $group_id           = api_get_group_id();
-    $is_allowed_to_edit = api_is_allowed_to_edit(null, true);
+    $is_allowed_to_edit = api_is_allowed_to_edit(null, true) || api_is_course_admin();
 
     if (!in_array($direction, array('asc','desc'))) {
         $direction = 'desc';
@@ -1659,18 +1659,27 @@ function getWorkListTeacher($start, $limit, $column, $direction, $where_conditio
             $work['title'] .= ' '.Display::label(get_count_work($work['id']), 'success');
             $work['sent_date'] = date_to_str_ago($work['sent_date']).' <br />'.api_get_local_time($work['sent_date']);
 
-            $editLink = Display::url(
-                Display::return_icon('edit.png', get_lang('Edit'), array(), ICON_SIZE_SMALL),
-                api_get_path(WEB_CODE_PATH).'work/edit_work.php?id='.$workId.'&'.api_get_cidreq()
-            );
+            $editLink = '';
+            
+            if (empty($session_id)) {
+                $editLink = Display::url(
+                    Display::return_icon('edit.png', get_lang('Edit'), array(), ICON_SIZE_SMALL),
+                    api_get_path(WEB_CODE_PATH).'work/edit_work.php?id='.$workId.'&'.api_get_cidreq()
+                );
+            }
 
             $downloadLink = Display::url(
                 Display::return_icon('save_pack.png', get_lang('Save'), array(), ICON_SIZE_SMALL),
                 api_get_path(WEB_CODE_PATH).'work/downloadfolder.inc.php?id='.$workId.'&'.api_get_cidreq()
             );
-            $deleteUrl = api_get_path(WEB_CODE_PATH).'work/work.php?id='.$workId.'&action=delete_dir&'.api_get_cidreq();
-            $deleteLink = '<a href="#" onclick="showConfirmationPopup(this, \''.$deleteUrl.'\' ) " >'.
-                Display::return_icon('delete.png', get_lang('Delete'), array(), ICON_SIZE_SMALL).'</a>';
+            
+            $deleteLink = '';
+
+            if (empty($session_id)) {
+                $deleteUrl = api_get_path(WEB_CODE_PATH).'work/work.php?id='.$workId.'&action=delete_dir&'.api_get_cidreq();
+                $deleteLink = '<a href="#" onclick="showConfirmationPopup(this, \''.$deleteUrl.'\' ) " >'.
+                    Display::return_icon('delete.png', get_lang('Delete'), array(), ICON_SIZE_SMALL).'</a>';
+            }
 
             $work['actions'] = $downloadLink.$editLink.$deleteLink;
             $works[] = $work;
@@ -1914,7 +1923,7 @@ function get_work_user_list($start, $limit, $column, $direction, $work_id, $wher
 
     $work_data          = get_work_data_by_id($work_id);
     $is_allowed_to_edit = api_is_allowed_to_edit(null, true);
-    $condition_session  = api_get_session_condition($session_id);
+    $condition_session  = (empty($session_id)) ? '': api_get_session_condition($session_id, true, true);
 
     $locked = api_resource_is_locked_by_gradebook($work_id, LINK_STUDENTPUBLICATION);
 
@@ -1939,7 +1948,7 @@ function get_work_user_list($start, $limit, $column, $direction, $work_id, $wher
         $extra_conditions .= " AND parent_id  = ".$work_id."  ";
 
         $select = 'SELECT DISTINCT u.user_id, work.id as id, title as title, description, url, sent_date, contains_file, has_properties, view_properties,
-                    qualification, weight, allow_text_assignment, u.firstname, u.lastname, u.username, parent_id, accepted, qualificator_id';
+                    qualification, weight, allow_text_assignment, u.firstname, u.lastname, u.username, parent_id, accepted, qualificator_id, work.session_id';
 
         if ($getCount) {
             $select = "SELECT DISTINCT count(u.user_id) as count ";
@@ -1969,6 +1978,8 @@ function get_work_user_list($start, $limit, $column, $direction, $work_id, $wher
         }
 
         while ($work = Database::fetch_array($result, 'ASSOC')) {
+            $workSessionId = $work['session_id'];
+            
             $item_id = $work['id'];
 
             // Get the author ID for that document from the item_property table
@@ -1982,7 +1993,7 @@ function get_work_user_list($start, $limit, $column, $direction, $work_id, $wher
 
 			// $item_property_data = api_get_item_property_info(api_get_course_int_id(), 'work', $item_id, api_get_session_id());
 			//if (!$is_allowed_to_edit && $item_property_data['insert_user_id'] == api_get_user_id()) {
-            if (!$is_allowed_to_edit && $owner_id == api_get_user_id()) {
+            if (!$is_allowed_to_edit && $owner_id == api_get_user_id() || empty($workSessionId)) {
 				$is_author = true;
 			}
 
@@ -2071,12 +2082,14 @@ function get_work_user_list($start, $limit, $column, $direction, $work_id, $wher
                             $action .= Display::return_icon('edit_na.png', get_lang('Comment'),array(), ICON_SIZE_SMALL);
                         }
                     } else {
-                        if ($qualification_exists) {
-                            $action .= '<a href="'.$url.'edit.php?'.api_get_cidreq().'&item_id='.$item_id.'&id='.$work['parent_id'].'" title="'.get_lang('Edit').'"  >'.
-                            Display::return_icon('rate_work.png', get_lang('CorrectAndRate'),array(), ICON_SIZE_SMALL).'</a>';
-                        } else {
-                            $action .= '<a href="'.$url.'edit.php?'.api_get_cidreq().'&item_id='.$item_id.'&id='.$work['parent_id'].'&gradebook='.Security::remove_XSS($_GET['gradebook']).'" title="'.get_lang('Modify').'">'.
-                            Display::return_icon('edit.png', get_lang('Edit'), array(), ICON_SIZE_SMALL).'</a>';
+                        if (!empty($workSessionId)) {
+                            if ($qualification_exists) {
+                                $action .= '<a href="'.$url.'edit.php?'.api_get_cidreq().'&item_id='.$item_id.'&id='.$work['parent_id'].'" title="'.get_lang('Edit').'"  >'.
+                                Display::return_icon('rate_work.png', get_lang('CorrectAndRate'),array(), ICON_SIZE_SMALL).'</a>';
+                            } else {
+                                $action .= '<a href="'.$url.'edit.php?'.api_get_cidreq().'&item_id='.$item_id.'&id='.$work['parent_id'].'&gradebook='.Security::remove_XSS($_GET['gradebook']).'" title="'.get_lang('Modify').'">'.
+                                Display::return_icon('edit.png', get_lang('Edit'), array(), ICON_SIZE_SMALL).'</a>';
+                            }
                         }
                     }
 
@@ -2084,7 +2097,9 @@ function get_work_user_list($start, $limit, $column, $direction, $work_id, $wher
                         if ($locked) {
                             $action .= Display::return_icon('move_na.png', get_lang('Move'),array(), ICON_SIZE_SMALL);
                         } else {
-                            $action .= '<a href="'.$url.'work.php?'.api_get_cidreq().'&action=move&item_id='.$item_id.'" title="'.get_lang('Move').'">'.Display::return_icon('move.png', get_lang('Move'),array(), ICON_SIZE_SMALL).'</a>';
+                            if (!empty($workSessionId)) {
+                                $action .= '<a href="'.$url.'work.php?'.api_get_cidreq().'&action=move&item_id='.$item_id.'" title="'.get_lang('Move').'">'.Display::return_icon('move.png', get_lang('Move'),array(), ICON_SIZE_SMALL).'</a>';
+                            }
                         }
                     }
 
@@ -2097,7 +2112,9 @@ function get_work_user_list($start, $limit, $column, $direction, $work_id, $wher
                     if ($locked) {
                         $action .= Display::return_icon('delete_na.png', get_lang('Delete'), '', ICON_SIZE_SMALL);
                     } else {
-                        $action .= '<a href="'.$url.'work_list_all.php?'.api_get_cidreq().'&id='.$work_id.'&action=delete&amp;item_id='.$item_id.'" onclick="javascript:if(!confirm('."'".addslashes(api_htmlentities(get_lang('ConfirmYourChoice'),ENT_QUOTES))."'".')) return false;" title="'.get_lang('Delete').'" >'.Display::return_icon('delete.png', get_lang('Delete'),'',ICON_SIZE_SMALL).'</a>';
+                        if (!empty($workSessionId)) {
+                            $action .= '<a href="'.$url.'work_list_all.php?'.api_get_cidreq().'&id='.$work_id.'&action=delete&amp;item_id='.$item_id.'" onclick="javascript:if(!confirm('."'".addslashes(api_htmlentities(get_lang('ConfirmYourChoice'),ENT_QUOTES))."'".')) return false;" title="'.get_lang('Delete').'" >'.Display::return_icon('delete.png', get_lang('Delete'),'',ICON_SIZE_SMALL).'</a>';
+                        }
                     }
                 } elseif ($is_author && (empty($work['qualificator_id']) || $work['qualificator_id'] == 0)) {
                     $action .= '<a href="'.$url.'view.php?'.api_get_cidreq().'&id='.$item_id.'" title="'.get_lang('View').'">'.Display::return_icon('default.png', get_lang('View'),array(), ICON_SIZE_SMALL).'</a>';

@@ -1049,6 +1049,7 @@ class learnpathItem
 	public function get_scorm_time($origin = 'php', $given_time = null, $query_db = false) {
 		$h = get_lang('h');
         $course_id = api_get_course_int_id();
+        $time = null;
 		if (!isset($given_time)) {
 			if (self::debug > 2) { error_log('learnpathItem::get_scorm_time(): given time empty, current_start_time = '.$this->current_start_time, 0); }
 			if (is_object($this)) {

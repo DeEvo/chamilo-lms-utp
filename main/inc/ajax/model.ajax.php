@@ -210,7 +210,7 @@ switch ($action) {
         $documents = getAllDocumentToWork($work_id, api_get_course_int_id());
 
         if (empty($documents)) {
-            $where_condition .= " AND u.user_id = ".api_get_user_id();
+            //$where_condition .= " AND u.user_id = ".api_get_user_id();
             $count = get_work_user_list($start, $limit, $sidx, $sord, $work_id, $where_condition, null, true);
         } else {
             $count = get_work_user_list_from_documents(
@@ -226,7 +226,7 @@ switch ($action) {
         }
        break;
     case 'get_work_student_list_overview':
-        if (!api_is_allowed_to_edit()) {
+        if (!api_is_allowed_to_edit() && !api_is_course_admin()) {
             return 0;
         }
         require_once api_get_path(SYS_CODE_PATH).'work/work.lib.php';
@@ -388,9 +388,9 @@ switch ($action) {
                     $session = array_merge($session, $sessionTmp);
                 }
             } else {
-		    	$course = api_get_course_info_by_id($courseId);
-	        	$session = SessionManager::get_session_by_course($course['code']);
-			}
+                $course = api_get_course_info_by_id($courseId);
+                $session = SessionManager::get_session_by_course($course['code']);
+            }
         } else {
             $session = api_get_session_info($sessionId);
         }
@@ -618,7 +618,7 @@ switch ($action) {
         $documents = getAllDocumentToWork($work_id, api_get_course_int_id());
 
         if (empty($documents)) {
-            $where_condition .= " AND u.user_id = ".api_get_user_id();
+            //$where_condition .= " AND u.user_id = ".api_get_user_id();
             $result = get_work_user_list($start, $limit, $sidx, $sord, $work_id, $where_condition);
         } else {
             $result = get_work_user_list_from_documents(
@@ -644,7 +644,7 @@ switch ($action) {
         $result = get_exam_results_data($start, $limit, $sidx, $sord, $exercise_id, $where_condition);
 		break;
     case 'get_work_student_list_overview':
-        if (!api_is_allowed_to_edit()) {
+        if (!api_is_allowed_to_edit() && !api_is_course_admin()) {
             return array();
         }
         require_once api_get_path(SYS_CODE_PATH).'work/work.lib.php';
@@ -768,8 +768,8 @@ switch ($action) {
         break;
     case 'get_session_lp_progress':
         $sessionId = 0;
-        if (!empty($_GET['course_id']))
-        {
+        $courseId = 0;
+        if (!empty($_GET['course_id'])) {
             $sessionId  = $_GET['session_id'] == 'T' ? 'T' : intval($_GET['session_id']);
             $courseId   = intval($_GET['course_id']);
             $course     = api_get_course_info_by_id($courseId);
@@ -777,24 +777,26 @@ switch ($action) {
             $date_to    = $_GET['date_to'];
         }
 
+        $intSessionId = $sessionId == 'T' ? 0 : $sessionId;
         /**
          * Add lessons of course
          *
          */
         $columns = array(
+            'session_name',
             'username',
             'firstname',
             'lastname',
         );
+
         require_once api_get_path(SYS_CODE_PATH).'newscorm/learnpathList.class.php';
-        $lessons = LearnpathList::get_course_lessons($course['code'], $sessionId);
-        foreach ($lessons as $lesson_id => $lesson)
-        {
-            $columns[] = $lesson_id;
+        $lessons = LearnpathList::get_course_lessons($course['code'], $intSessionId);
+        foreach ($lessons as $lesson_id => $lesson) {
+            $columns[] = $lesson['name'];
         }
         $columns[] = 'total';
 
-        $result = SessionManager::get_session_lp_progress($sessionId, $courseId, $date_from, $date_to,
+        $result = SessionManager::get_session_lp_progress($sessionId, $courseId, null, null,
             array(
                 'where' => $where_condition,
                 'order' => "$sidx $sord",
@@ -858,6 +860,7 @@ switch ($action) {
         );
         break;
     case 'display_course_progress_summary':
+
         $columnParameters = Tracking::getColumnHeaders();
         $columns = $columnParameters['columns'];
         $column_names = $columnParameters['column_names'];
@@ -1163,10 +1166,23 @@ switch ($action) {
         }
         break;
     case 'get_exercise_grade':
+
+        $filterBySession = true;
+        if (isset($_GET['session_id']) && $_GET['session_id'] == 'T') {
+            $filterBySession = false;
+        }
+
         $sessionId = intval($_GET['session_id']);
         $courseId = intval($_GET['course_id']);
+        $onlyInLp = intval($_GET['only_in_lp']);
+
         $objExercise = new Exercise();
-        $exercises = $objExercise->getExercisesByCourseSession($courseId, $sessionId);
+        $exercises = $objExercise->getExercisesByCourseSession(
+            $courseId,
+            $sessionId,
+            $filterBySession
+        );
+
         $cntExer = 4;
         if (!empty($exercises)) {
             $cntExer += count($exercises);
@@ -1208,22 +1224,65 @@ switch ($action) {
 
         $quizIds = array();
         if (!empty($exercises)) {
-            foreach($exercises as $exercise) {
+            foreach ($exercises as $exercise) {
                 $quizIds[] = $exercise['id'];
             }
         }
 
         $course = api_get_course_info_by_id($_GET['course_id']);
         $listUserSess = CourseManager::get_student_list_from_course_code($course['code'], true, $sessionId);
-
         $usersId = array_keys($listUserSess);
-
         $users = UserManager::get_user_list_by_ids($usersId, null, "lastname, firstname",  "$start , $limit");
-        $exeResults = $objExercise->getExerciseAndResult($_GET['course_id'], $_GET['session_id'], $quizIds);
+
+        $exeResults = $objExercise->getExerciseAndResult(
+            $_GET['course_id'],
+            $_GET['session_id'],
+            $quizIds,
+            $filterBySession,
+            $onlyInLp
+        );
 
         $arrGrade = array();
         foreach ($exeResults as $exeResult) {
-            $arrGrade[$exeResult['exe_user_id']][$exeResult['exe_exo_id']] = $exeResult['exe_result'];
+            /*if (!empty($arrGrade[$exeResult['exe_user_id']][$exeResult
+                ['exe_exo_id']]) ||
+                $arrGrade[$exeResult['exe_user_id']][$exeResult['exe_exo_id']] === 0
+            ) {
+                continue;
+            } else {*/
+                // If value already exists and only one attempt, ignore the rest
+
+                if (
+                    $exeResult['max_attempt'] == 1 &&
+                    isset($arrGrade[$exeResult['exe_user_id']][$exeResult['exe_exo_id']])
+                ) {
+                    continue;
+                }
+
+                /*if (
+                    $exeResult['max_attempt'] > 1 &&
+                    isset($arrGrade[$exeResult['exe_user_id']][$exeResult['exe_exo_id']])
+                ) {
+                    var_dump($exeResult['exe_date']);
+                    if (
+                    $arrGrade[$exeResult['exe_user_id']][$exeResult['exe_exo_id']]['exe_date'] >
+                    $exeResult['exe_result']['exe_date']
+                    ) {
+                        continue;
+                    }
+                }*/
+
+
+            /*if (
+                $exeResult['max_attempt'] > 1 &&
+                isset($arrGrade[$exeResult['exe_user_id']][$exeResult['exe_exo_id']])
+            ) {
+                continue;
+            }*/
+
+
+                $arrGrade[$exeResult['exe_user_id']][$exeResult['exe_exo_id']] = $exeResult['exe_result'];
+            //}
         }
 
         $result = array();
@@ -1237,8 +1296,10 @@ switch ($action) {
             $finalScore = 0;
             foreach ($quizIds as $quizID) {
                 $grade = "";
-                if (!empty($arrGrade [$user['user_id']][$quizID]) || $arrGrade [$user['user_id']][$quizID] == 0) {
-                    $finalScore += $grade = $arrGrade [$user['user_id']][$quizID];
+                if (!empty($arrGrade [$user['user_id']][$quizID]) ||
+                    $arrGrade [$user['user_id']][$quizID] == 0
+                ) {
+                    $finalScore += $grade = $arrGrade[$user['user_id']][$quizID];
                 }
                 $result[$i]['exer' . $j] = $grade;
                 $j++;
@@ -1440,7 +1501,7 @@ switch ($action) {
                 $result = array_merge($result, $progress);
             }
         } else {
-        	$result = SessionManager::sessionProgressByCourse($course['code'], $arrSession);
+            $result = SessionManager::sessionProgressByCourse($course['code'], $arrSession);
         }
         break;
     default:

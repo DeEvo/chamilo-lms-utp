@@ -29,7 +29,9 @@ if (empty($my_folder_data)) {
     api_not_allowed(true);
 }
 
-if (!api_is_allowed_to_edit(null, true)) {
+$isAllowedToEdit = api_is_allowed_to_edit(null, true);
+
+if (!$isAllowedToEdit && !api_is_course_admin()) {
     api_not_allowed(true);
 }
 

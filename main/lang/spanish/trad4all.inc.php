@@ -1518,4 +1518,5 @@ $StudentDetail = "Detalle del Estudiante";
 $CourseCode = "Código del Curso";
 $SessionCode = "Código de la Sesión";
 $CourseManagerAdmin = "Administrador de cursos";
+$ExerciseOnlyInLp = "Solo ejercicios incluidos en Lecciones";
 ?>

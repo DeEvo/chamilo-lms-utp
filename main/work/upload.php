@@ -42,9 +42,31 @@ if (empty($workInfo)) {
 allowOnlySubscribedUser($user_id, $work_id, $course_id);
 
 $is_course_member = CourseManager::is_user_subscribed_in_real_or_linked_course($user_id, $course_code, $session_id);
-$is_course_member = $is_course_member || api_is_platform_admin();
+$is_course_member = $is_course_member || api_is_platform_admin() || api_is_course_admin();
 
-if ($is_course_member == false) {
+$userIsInSession = $session_id > 0;
+$workWasCreatedInSession = $workInfo['session_id'] > 0;
+$workSessionIsCurrentSession = $session_id == $workInfo['session_id'];
+$allowUpload = false;
+
+if ($userIsInSession) {
+    if ($workWasCreatedInSession) {
+        if ($workSessionIsCurrentSession) {
+            $allowUpload = true;
+        }
+    }
+    else {
+        if ($is_course_member && api_is_student()) {
+            $allowUpload = true;
+        }
+    }
+} else {
+    if (api_is_platform_admin() || api_is_course_admin()) {
+        $allowUpload = true;
+    }
+}
+
+if (!$allowUpload) {
     api_not_allowed(true);
 }
 

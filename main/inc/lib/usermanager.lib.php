@@ -929,7 +929,7 @@ class UserManager
         if (!is_null($limit)) {
             $sql .= ' LIMIT ' . $limit;
         }
-        
+
         $rs = Database::query($sql);
         $result = array();
         while ($row = Database::fetch_array($rs)) {
@@ -2148,8 +2148,11 @@ class UserManager
                     nb_days_access_before_beginning,
                     nb_days_access_after_end
 
-              FROM $tbl_session as session LEFT JOIN $tbl_session_category session_category ON (session_category_id = session_category.id)
-                    INNER JOIN $tbl_session_course_user as session_rel_course_user ON (session_rel_course_user.id_session = session.id)
+              FROM $tbl_session as session
+                    LEFT JOIN $tbl_session_category session_category
+                    ON (session_category_id = session_category.id)
+                    INNER JOIN $tbl_session_course_user as session_rel_course_user
+                    ON (session_rel_course_user.id_session = session.id)
               WHERE (
                         session_rel_course_user.id_user = $user_id OR session.id_coach = $user_id
                     )  $condition_date_end
@@ -2277,31 +2280,32 @@ class UserManager
         // Get the list of sessions where the user is subscribed
         // This is divided into two different queries
         $sessions = array();
-        $sessions_sql = "SELECT DISTINCT id, name, date_start, date_end
-                        FROM $tbl_session_user, $tbl_session
-                        WHERE (
-                            id_session = id AND
-                            id_user = $user_id AND
-                            relation_type <> ".SESSION_RELATION_TYPE_RRHH."
-                        )
-                        $coachCourseConditions
-                        ORDER BY date_start, date_end, name";
+        $sql = "SELECT DISTINCT id, name, date_start, date_end
+                FROM $tbl_session_user su INNER JOIN $tbl_session s
+                ON (su.id_session = s.id)
+                WHERE (
+                    id_user = $user_id AND
+                    relation_type <> ".SESSION_RELATION_TYPE_RRHH."
+                )
+                $coachCourseConditions
+                ORDER BY date_start, date_end, name";
 
-        $result = Database::query($sessions_sql);
+        $result = Database::query($sql);
         if (Database::num_rows($result)>0) {
             while ($row = Database::fetch_assoc($result)) {
                 $sessions[$row['id']] = $row;
             }
         }
-        $sessions_sql = "SELECT DISTINCT id, name, date_start, date_end
-                        FROM $tbl_session_user, $tbl_session
-                        WHERE (
-                            id_coach = $user_id
-                        )
-                        $coachCourseConditions
-                        ORDER BY date_start, date_end, name";
 
-        $result = Database::query($sessions_sql);
+        $sql = "SELECT DISTINCT id, name, date_start, date_end
+                FROM $tbl_session
+                WHERE (
+                    id_coach = $user_id
+                )
+                $coachCourseConditions
+                ORDER BY date_start, date_end, name";
+
+        $result = Database::query($sql);
         if (Database::num_rows($result)>0) {
             while ($row = Database::fetch_assoc($result)) {
                 if (empty($sessions[$row['id']])) {

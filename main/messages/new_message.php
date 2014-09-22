@@ -57,6 +57,7 @@ $(document).ready(function () {
         //onremove: "testme",
     	onselect:"check_users",
         filter_selected: true,
+        filter_list_before_show: false,
         newel: true
     });
 });
@@ -134,6 +135,7 @@ function show_compose_to_any ($user_id) {
 
 function show_compose_reply_to_message($message_id, $receiver_id) {
 	global $charset;
+    $html = '';
 	$table_message = Database::get_main_table(TABLE_MESSAGE);
 	$query = "SELECT user_sender_id FROM $table_message WHERE user_receiver_id=".intval($receiver_id)." AND id='".intval($message_id)."';";
 	$result = Database::query($query);

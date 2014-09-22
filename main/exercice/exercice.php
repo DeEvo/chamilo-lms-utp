@@ -674,6 +674,13 @@ if (!empty($exercise_list)) {
                         $rowi.' '.api_strtolower(get_lang(($rowi > 1 ? 'Questions' : 'Question')));
                     }
 
+                    $orderCondition = ' ORDER BY exe_id DESC ';
+                    $firstAttempt = false;
+                    if ($row['max_attempt'] == 1) {
+                        $firstAttempt = true;
+                        $orderCondition = 'ORDER BY exe_id LIMIT 1';
+                    }
+
                     //This query might be improved later on by ordering by the new "tms" field rather than by exe_id
                     //Don't remove this marker: note-query-exe-results
                     $qry = "SELECT * FROM $TBL_TRACK_EXERCICES
@@ -684,7 +691,8 @@ if (!empty($exercise_list)) {
                                 orig_lp_id      = 0 AND
                                 orig_lp_item_id = 0 AND
                                 session_id      =  '".api_get_session_id()."'
-                        ORDER BY exe_id DESC";
+                        $orderCondition
+                        ";
                     $qryres = Database::query($qry);
                     $num = Database :: num_rows($qryres);
 
@@ -723,7 +731,7 @@ if (!empty($exercise_list)) {
                                         $attempt_text = sprintf(get_lang('ExerciseWasActivatedFromXToY'), api_convert_and_format_date($row['start_time']), api_convert_and_format_date($row['end_time']));
                                     }
                                 }
-                                            
+
                             } else {
                                 //$attempt_text = get_lang('ExamNotAvailableAtThisTime');
                                 if ($row['start_time'] != '0000-00-00 00:00:00') {

@@ -740,4 +740,38 @@ class ExtraFieldValue extends Model
     public function compare_item_values($item_id, $item_to_compare)
     {
     }
+
+    /**
+     * Gets the IDs from the item (course, session, etc) for which
+     * the given field is defined with the given value
+     * @param $field_variable \Field $string we want to check
+     * @param $field_value \Data $string we are looking for in the given field
+     * @param bool $transform
+     * @return mixed Give the IDs if found, or false on failure or not found
+     */
+    public function get_item_ids_from_field_variable_and_field_value($field_variable, $field_value, $transform = false)
+    {
+        $extraConditions = $this->getExtraFieldSqlConditions();
+        $field_value = Database::escape_string($field_value);
+        $field_variable = Database::escape_string($field_variable);
+
+        $sql = "SELECT {$this->handler_id} FROM {$this->table} s
+                INNER JOIN {$this->table_handler_field} sf
+                ON (s.field_id = sf.id)
+                WHERE
+                    field_value  = '$field_value' AND
+                    field_variable = '".$field_variable."'
+                    $extraConditions
+                ";
+
+        $result = Database::query($sql);
+        if ($result !== false && Database::num_rows($result)) {
+            while ($row = Database::fetch_array($result, 'ASSOC')) {
+                $result_array[] = $row[$this->handler_id];
+            }
+            return $result_array;
+        } else {
+            return false;
+        }
+    }
 }

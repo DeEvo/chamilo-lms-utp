@@ -46,8 +46,9 @@ $count_sessions 	= 0;
 $count_courses		= 0;
 $title 				= null;
 
-//Set Minimun Input Length = 3 used with Select2
+//Set Minimum Input Length = 3 used with Select2
 $minimumInputLength = 3;
+$minimumInputLengthCategory = 1;
 
 // Access control
 api_block_anonymous_users();
@@ -742,7 +743,7 @@ if ($is_platform_admin && in_array($view, array('admin')) && $display != 'yourst
         } else {
             if ($display == 'student_progress_report') {
                 $url = $ajax_path . 'course.ajax.php?a=search_category';
-                $sessionFilter->addElement('select_ajax', 'category_code', get_lang('Category'), null, array('url' => $url, 'defaults' => '', 'width' => '400px', 'minimumInputLength' => $minimumInputLength));
+                $sessionFilter->addElement('select_ajax', 'category_code', get_lang('Category'), null, array('url' => $url, 'defaults' => '', 'width' => '400px', 'minimumInputLength' => $minimumInputLengthCategory));
             }
             $url = $ajax_path . 'course.ajax.php?a='. $a .'&session_id=' . $sessionId;
             $sessionFilter->addElement('select_ajax', 'course_name', get_lang('SearchCourse'), null, array('url' => $url, 'defaults' => $courseList, 'width' => '400px', 'minimumInputLength' => $minimumInputLength));
@@ -850,9 +851,45 @@ if ($is_platform_admin && in_array($view, array('admin')) && $display != 'yourst
 
         //date filter
         if (!in_array($display, $opts)) {
-            $sessionFilter->addElement('text', 'from', get_lang('From'), array('id' => 'date_from', 'value' => (!empty($_GET['date_from']) ? $_GET['date_from'] : ''), 'style' => 'width:75px' ));
-            $sessionFilter->addElement('text', 'to', get_lang('Until'), array('id' => 'date_to', 'value' => (!empty($_GET['date_to']) ? $_GET['date_to'] : ''), 'style' => 'width:75px' ));
+            if ($display != 'lpprogressoverview') {
+                $sessionFilter->addElement(
+                    'text',
+                    'from',
+                    get_lang('From'),
+                    array(
+                        'id' => 'date_from',
+                        'value' => (!empty($_GET['date_from']) ? $_GET['date_from'] : ''),
+                        'style' => 'width:75px'
+                    )
+                );
+                $sessionFilter->addElement(
+                    'text',
+                    'to',
+                    get_lang('Until'),
+                    array(
+                        'id' => 'date_to',
+                        'value' => (!empty($_GET['date_to']) ? $_GET['date_to'] : ''),
+                        'style' => 'width:75px'
+                    )
+                );
+            }
        }
+
+        if ($display == 'lpgradereport') {
+            $checkbox = $sessionFilter->addElement(
+                'checkbox',
+                'only_in_lp',
+                null,
+                get_lang('ExerciseOnlyInLp'),
+                array('id' => 'only_in_lp', 'value' => 1)
+            );
+            if (isset($_GET['only_in_lp']) && $_GET['only_in_lp'] == 1) {
+                $checkbox->setChecked(true);
+            } else {
+                $checkbox->setChecked(false);
+            }
+        }
+
         $sessionFilter->addElement('submit', '', get_lang('Generate'), 'id="generateReport"');
 
         echo '<div class="">';
@@ -870,7 +907,6 @@ if ($is_platform_admin && in_array($view, array('admin')) && $display != 'yourst
         }
 
         $url = $ajax_path . 'course.ajax.php?a='. $a .'&session_id=' . $sessionId;
-
         echo '<script>
         $(function() {
             if (display == "lpprogressoverview" || display == "progressoverview" || display == "surveyoverview") {
@@ -905,6 +941,11 @@ if ($is_platform_admin && in_array($view, array('admin')) && $display != 'yourst
                 }
                 if (!isEmpty($("#date_from").val()) && !isEmpty($("#date_to").val())) {
                     url = url + "&date_from=" + $("#date_from").val() + "&date_to=" + $("#date_to").val();
+                }
+                if (!isEmpty($("#only_in_lp").is(":checked"))) {
+                    url = url + "&only_in_lp=" + $("#only_in_lp").val();
+                } else {
+                    url = url + "&only_in_lp=0";
                 }
                 window.location = url;
                 e.preventDefault();
@@ -1045,15 +1086,15 @@ if ($is_platform_admin && in_array($view, array('admin')) && $display != 'yourst
             echo get_lang('Downloading');
             MySpace::export_csv(
                 array(
-                    'Name',
-                    'Sección',
-                    'tutor',
-                    'carga de archivos',
-                    'publicación de enlaces',
-                    'foros',
-                    'tareas',
-                    'wikis',
-                    'anuncios',
+                    get_lang('Name'),
+                    get_lang('Section'),
+                    get_lang('Tutor'),
+                    get_lang('FilesUpload'),
+                    get_lang('LinksPublication'),
+                    get_lang('Forum'),
+                    get_lang('Task'),
+                    get_lang('Wiki'),
+                    get_lang('Announcement'),
                 ), $data
             );
             break;
@@ -1124,7 +1165,12 @@ if ($is_platform_admin && in_array($view, array('admin')) && $display != 'yourst
             break;
         case 'lpgradereport':
             if (!empty($_GET['course_id'])) {
-                echo MySpace::display_tracking_grade_overview(intval($_GET['session_id']), intval($_GET['course_id']), intval($_GET['exercise_id']));
+                echo MySpace::display_tracking_grade_overview(
+                    $_GET['session_id'],
+                    $_GET['course_id'],
+                    $_GET['exercise_id'],
+                    $_GET['only_in_lp']
+                );
             } else {
                 Display::display_warning_message(get_lang('ChooseCourse'));
             }

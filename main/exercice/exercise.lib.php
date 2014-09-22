@@ -45,6 +45,7 @@ function showQuestion($questionId, $only_questions = false, $origin = false, $cu
 
     $answerType    = $objQuestionTmp->selectType();
     $pictureName   = $objQuestionTmp->selectPicture();
+    $s = '';
 
     if ($answerType != HOT_SPOT && $answerType != HOT_SPOT_DELINEATION) {
     	// Question is not a hotspot
@@ -65,8 +66,6 @@ function showQuestion($questionId, $only_questions = false, $origin = false, $cu
         }
 
         echo '<div class="question_options">';
-
-    	$s = '';
 
     	// construction of the Answer object (also gets all answers details)
     	$objAnswerTmp = new Answer($questionId);
@@ -178,8 +177,17 @@ function showQuestion($questionId, $only_questions = false, $origin = false, $cu
 
         if ($answerType == MULTIPLE_ANSWER_TRUE_FALSE || $answerType ==  MULTIPLE_ANSWER_COMBINATION_TRUE_FALSE) {
             $header = Display::tag('th', get_lang('Options'));
-            foreach ($objQuestionTmp->options as $key=>$item) {
-                $header .= Display::tag('th', $item);
+            foreach ($objQuestionTmp->options as $item) {
+                if ($answerType == MULTIPLE_ANSWER_TRUE_FALSE) {
+                    if (in_array($item, $objQuestionTmp->options)) {
+                        $header .= Display::tag('th', get_lang($item));
+                    } else {
+                        $header .= Display::tag('th', $item);
+                    }
+                } else {
+                    $header .= Display::tag('th', $item);
+                }
+
             }
             if ($show_comment) {
                 $header .= Display::tag('th', get_lang('Feedback'));
@@ -195,7 +203,7 @@ function showQuestion($questionId, $only_questions = false, $origin = false, $cu
                     $header .= Display::tag('th', get_lang('Feedback'));
                 }
                 $s .= '<table class="data_table">';
-                $s.= Display::tag('tr',$header, array('style'=>'text-align:left;'));
+                $s .= Display::tag('tr',$header, array('style'=>'text-align:left;'));
             }
         }
 
@@ -353,16 +361,16 @@ function showQuestion($questionId, $only_questions = false, $origin = false, $cu
                 $answer_input .= '</label>';
 
                 if ($show_comment) {
-                    $s.= '<tr>';
+                    $s .= '<tr>';
                     $s .= '<td>';
-                    $s.= $answer_input;
+                    $s .= $answer_input;
                     $s .= '</td>';
                     $s .= '<td>';
                     $s .= $comment;
                     $s .= '</td>';
-                    $s.= '</tr>';
+                    $s .= '</tr>';
                 } else {
-                    $s.= $answer_input;
+                    $s .= $answer_input;
                 }
 
             } elseif ($answerType == MULTIPLE_ANSWER_COMBINATION_TRUE_FALSE) {
@@ -400,7 +408,7 @@ function showQuestion($questionId, $only_questions = false, $origin = false, $cu
                     $s .= $comment;
                     $s .= '</td>';
                 }
-            	$s.='</tr>';
+            	$s .='</tr>';
 
     		} elseif ($answerType == FILL_IN_BLANKS) {
     			list($answer) = explode('::', $answer);
@@ -501,7 +509,7 @@ function showQuestion($questionId, $only_questions = false, $origin = false, $cu
     				}  // end foreach()
 
     				$s .= '</select></td>';
-    				$s.='<td width="45%" valign="top" >';
+    				$s .='<td width="45%" valign="top" >';
     				if (isset($select_items[$lines_count])) {
     					$s.='<span style="float:left; width:5%;"><b>'.$select_items[$lines_count]['letter'].'.</b></span>'.
     						 '<span style="float:left; width:95%;">'.$select_items[$lines_count]['answer'].'</span>';
@@ -519,8 +527,8 @@ function showQuestion($questionId, $only_questions = false, $origin = false, $cu
     						$s .= '<tr>
     							  <td colspan="2"></td>
     							  <td valign="top">';
-    						$s.='<b>'.$select_items[$lines_count]['letter'].'.</b> '.$select_items[$lines_count]['answer'];
-    						$s.="</td>
+    						$s .='<b>'.$select_items[$lines_count]['letter'].'.</b> '.$select_items[$lines_count]['answer'];
+    						$s .="</td>
     						</tr>";
     						$lines_count++;
     					}	// end while()
@@ -796,14 +804,12 @@ function exercise_time_control_is_valid($exercise_id, $lp_id = 0 , $lp_item_id =
     $sql 	= "SELECT expired_time FROM $TBL_EXERCICES WHERE c_id = $course_id AND id = $exercise_id";
     $result = Database::query($sql);
     $row	= Database::fetch_array($result, 'ASSOC');
-    if (!empty($row['expired_time']) ) {
+    if (!empty($row['expired_time'])) {
     	$current_expired_time_key = get_time_control_key($exercise_id, $lp_id, $lp_item_id);
     	if (isset($_SESSION['expired_time'][$current_expired_time_key])) {
             $current_time = time();
     		$expired_time = api_strtotime($_SESSION['expired_time'][$current_expired_time_key], 'UTC');
     		$total_time_allowed = $expired_time + 30;
-    		//error_log('expired time converted + 30: '.$total_time_allowed);
-    		//error_log('$current_time: '.$current_time);
             if ($total_time_allowed < $current_time) {
             	return false;
             }
@@ -855,6 +861,10 @@ function get_count_exam_results($exercise_id, $extra_where_conditions) {
     return $count;
 }
 
+/**
+ * @param string $in_hotpot_path
+ * @return int
+ */
 function get_count_exam_hotpotatoes_results($in_hotpot_path) {
     return get_exam_results_hotpotatoes_data(0, 0, '', '', $in_hotpot_path, true, '');
 }
@@ -1419,8 +1429,8 @@ function convert_score($score, $weight) {
  * @param   boolean Check publications dates
  * @param   string  Search exercise name
  * @param   boolean Search exercises in all sessions
- * @param   int     0 = only inactive exercises 
- *                  1 = only active exercises, 
+ * @param   int     0 = only inactive exercises
+ *                  1 = only active exercises,
  *                  2 = all exercises
  *                  3 = active <> -1
  * @return  array   array with exercise data
@@ -1448,7 +1458,7 @@ function get_all_exercises($course_info = null, $session_id = 0, $check_publicat
     }
 
     $needle_where   = (!empty($search_exercise)) ? " AND title LIKE '?' "       : '';
-    $needle         = (!empty($search_exercise)) ? "%" . $search_exercise . "%" : ''; 
+    $needle         = (!empty($search_exercise)) ? "%" . $search_exercise . "%" : '';
 
     //Show courses by active status
     $active_sql = '';
@@ -1458,25 +1468,23 @@ function get_all_exercises($course_info = null, $session_id = 0, $check_publicat
         $active_sql = sprintf(' active = %d AND', $active);
     }
 
-
-    if ($search_all_sessions == true) 
-    {
+    if ($search_all_sessions == true) {
         $conditions = array('where'=>array($active_sql . ' c_id = ? '. $needle_where . $time_conditions => array($course_id, $needle)), 'order'=>'title');
-    } else 
-    {
+    } else {
         if ($session_id == 0) {
             $conditions = array('where'=>array($active_sql . ' session_id = ? AND c_id = ? '. $needle_where . $time_conditions => array($session_id, $course_id, $needle)), 'order'=>'title');
         } else {
             $conditions = array('where'=>array($active_sql . ' (session_id = 0 OR session_id = ? ) AND c_id = ? ' . $needle_where . $time_conditions => array($session_id, $course_id, $needle)), 'order'=>'title');
         }
     }
+
     return Database::select('*',$TBL_EXERCICES, $conditions);
 }
 /**
  * Get exercise information by id
  * @param int $exerciseId Exercise Id
  * @param int $courseId The course ID (necessary as c_quiz.id is not unique)
- * @return array Exercise info 
+ * @return array Exercise info
  */
 function get_exercise_by_id($exerciseId = 0, $courseId = null) {
     $TBL_EXERCICES = Database :: get_course_table(TABLE_QUIZ_TEST);
@@ -2140,11 +2148,12 @@ function delete_chat_exercise_session($exe_id) {
 
 /**
  * Display the exercise results
- * @param obj   exercise obj
- * @param int   attempt id (exe_id)
- * @param bool  save users results (true) or just show the results (false)
+ * @param Exercise $objExercise
+ * @param int $exe_id
+ * @param bool $save_user_result save users results (true) or just show the results (false)
  */
-function display_question_list_by_attempt($objExercise, $exe_id, $save_user_result = false) {
+function display_question_list_by_attempt($objExercise, $exe_id, $save_user_result = false)
+{
     global $origin, $debug;
 
     //Getting attempt info
@@ -2159,7 +2168,6 @@ function display_question_list_by_attempt($objExercise, $exe_id, $save_user_resu
         if ($save_user_result == false) {
             $question_list = $objExercise->get_validated_question_list();
         }
-        error_log("Data tracking is empty! exe_id: $exe_id");
     }
 
     $counter = 1;
@@ -2190,7 +2198,11 @@ function display_question_list_by_attempt($objExercise, $exe_id, $save_user_resu
     if ($show_results || $show_only_score) {
         $user_info   = api_get_user_info($exercise_stat_info['exe_user_id']);
         //Shows exercise header
-        echo $objExercise->show_exercise_result_header($user_info['complete_name'], api_convert_and_format_date($exercise_stat_info['start_date'], DATE_TIME_FORMAT_LONG), $exercise_stat_info['duration']);
+        echo $objExercise->show_exercise_result_header(
+            $user_info['complete_name'],
+            api_convert_and_format_date($exercise_stat_info['start_date'], DATE_TIME_FORMAT_LONG),
+            $exercise_stat_info['duration']
+        );
     }
 
     // Display text when test is finished #4074 and for LP #4227
@@ -2206,7 +2218,6 @@ function display_question_list_by_attempt($objExercise, $exe_id, $save_user_resu
 
     // Loop over all question to show results for each of them, one by one
     if (!empty($question_list)) {
-        if ($debug) { error_log('Looping question_list '.print_r($question_list,1));}
         foreach ($question_list as $questionId) {
 
             // creates a temporary Question object
@@ -2216,14 +2227,25 @@ function display_question_list_by_attempt($objExercise, $exe_id, $save_user_resu
             ob_start();
 
             // We're inside *one* question. Go through each possible answer for this question
-            $result = $objExercise->manage_answer($exercise_stat_info['exe_id'], $questionId, null, 'exercise_result', array(), $save_user_result, true, $show_results, $objExercise->selectPropagateNeg(), $hotspot_delineation_result);
+
+            $result = $objExercise->manage_answer(
+                $exercise_stat_info['exe_id'],
+                $questionId,
+                null,
+                'exercise_result',
+                array(),
+                $save_user_result,
+                true,
+                $show_results,
+                $objExercise->selectPropagateNeg(),
+                $hotspot_delineation_result
+            );
 
             if (empty($result)) {
                 continue;
             }
-
-            $total_score     += $result['score'];
-            $total_weight    += $result['weight'];
+            $total_score += $result['score'];
+            $total_weight += $result['weight'];
 
             $question_list_answers[] = array(
                 'question' => $result['open_question'],
@@ -2233,7 +2255,6 @@ function display_question_list_by_attempt($objExercise, $exe_id, $save_user_resu
 
             $my_total_score  = $result['score'];
             $my_total_weight = $result['weight'];
-
 
             //Category report
             $category_was_added_for_this_test = false;
@@ -2254,6 +2275,13 @@ function display_question_list_by_attempt($objExercise, $exe_id, $save_user_resu
 
             //No category for this question!
             if ($category_was_added_for_this_test == false) {
+                if (!isset($category_list['none']['score'])) {
+                    $category_list['none']['score'] = 0;
+                }
+                if (!isset($category_list['none']['total'])) {
+                    $category_list['none']['total'] = 0;
+                }
+
                 $category_list['none']['score'] += $my_total_score;
                 $category_list['none']['total'] += $my_total_weight;
             }
@@ -2329,7 +2357,6 @@ function display_question_list_by_attempt($objExercise, $exe_id, $save_user_resu
         echo $total_score_text;
     }
 
-
     if ($save_user_result) {
 
         // Tracking of results
@@ -2338,7 +2365,20 @@ function display_question_list_by_attempt($objExercise, $exe_id, $save_user_resu
         $learnpath_item_view_id = $exercise_stat_info['orig_lp_item_view_id'];
 
         if (api_is_allowed_to_session_edit()) {
-            update_event_exercice($exercise_stat_info['exe_id'], $objExercise->selectId(), $total_score, $total_weight, api_get_session_id(), $learnpath_id, $learnpath_item_id, $learnpath_item_view_id, $exercise_stat_info['exe_duration'], $question_list, '', array(), $end_date);
+            update_event_exercice(
+                $exercise_stat_info['exe_id'],
+                $objExercise->selectId(),
+                $total_score,
+                $total_weight,
+                api_get_session_id(),
+                $learnpath_id,
+                $learnpath_item_id,
+                $learnpath_item_view_id,
+                $exercise_stat_info['exe_duration'],
+                $question_list,
+                '',
+                array()
+            );
         }
 
         // Send notification ..

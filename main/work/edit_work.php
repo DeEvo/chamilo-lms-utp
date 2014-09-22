@@ -19,6 +19,7 @@ if (!api_is_allowed_to_edit()) {
 }
 
 $courseInfo = api_get_course_info();
+$sessionId = api_get_session_id();
 $workId = isset($_GET['id']) ? intval($_GET['id']) : null;
 $workData = get_work_data_by_id($workId);
 $homework = get_work_assignment_by_id($workId);
@@ -26,6 +27,12 @@ $locked = api_resource_is_locked_by_gradebook($workId, LINK_STUDENTPUBLICATION);
 
 if (api_is_platform_admin() == false && $locked == true) {
     api_not_allowed(true);
+}
+
+if (!empty($sessionId) && isset($workData['session_id'])) {
+    if ($sessionId != $workData['session_id']) {
+        api_not_allowed(true);
+    }
 }
 
 $htmlHeadXtra[] = to_javascript_work();

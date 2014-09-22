@@ -1,27 +1,13 @@
 <?php
 /* For licensing terms, see /license.txt */
 /**
-*	File containing the FillBlanks class.
-*	@package chamilo.exercise
-* 	@author Eric Marguin
-* 	@author Julio Montoya Armas switchable fill in blank option added
-* 	@version $Id: admin.php 10680 2007-01-11 21:26:23Z pcool $
-*/
-/**
- * Code
- */
-
-/**
-	CLASS FillBlanks
  *
- *	This class allows to instantiate an object of type MULTIPLE_ANSWER (MULTIPLE CHOICE, MULTIPLE ANSWER),
- *	extending the class question
+ *	Class FillBlanks
  *
  *	@author Eric Marguin
  * 	@author Julio Montoya multiple fill in blank option added
  *	@package chamilo.exercise
  **/
-
 class FillBlanks extends Question
 {
 	static $typePicture = 'fill_in_blanks.gif';

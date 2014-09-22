@@ -43,6 +43,7 @@ $course_code = api_get_course_id();
 $to_group_id = api_get_group_id();
 
 $is_allowed_to_edit = api_is_allowed_to_edit(null, true);
+$isCoach = api_is_coach();
 $group_member_with_upload_rights = false;
 
 // If the group id is set, we show them group documents
@@ -203,7 +204,7 @@ if ($to_group_id != 0 && $curdirpath == '/') {
 //@todo check this validation for coaches
 //if (!$is_allowed_to_edit || api_is_coach()) { before
 
-if (!$is_allowed_to_edit && api_is_coach()) {
+if (!$is_allowed_to_edit && $isCoach) {
     if ($curdirpath != '/' && !(DocumentManager::is_visible($curdirpath, $_course, api_get_session_id(),'folder'))) {   
         api_not_allowed(true);
     }
@@ -361,7 +362,7 @@ if ($is_allowed_to_edit || $group_member_with_upload_rights || is_my_shared_fold
     if (isset($_GET['move']) && $_GET['move'] != '') {
         $my_get_move = intval($_REQUEST['move']);
 
-        if (api_is_coach()) {
+        if ($isCoach) {
             if (!DocumentManager::is_visible_by_id($my_get_move, $course_info, api_get_session_id(), api_get_user_id())) {                    
                 api_not_allowed();
             }
@@ -407,7 +408,7 @@ if ($is_allowed_to_edit || $group_member_with_upload_rights || is_my_shared_fold
             }
         }
 
-        if (api_is_coach()) {               
+        if ($isCoach) {
             if (!DocumentManager::is_visible_by_id($_POST['move_file'], $_course, api_get_session_id(), api_get_user_id())) {                    
                 api_not_allowed();
             }
@@ -469,7 +470,7 @@ if ($is_allowed_to_edit || $group_member_with_upload_rights || is_my_shared_fold
 if($is_allowed_to_edit || $group_member_with_upload_rights || is_my_shared_folder(api_get_user_id(), $curdirpath, $session_id)){
     if (isset($_GET['delete'])) {
         if (!$is_allowed_to_edit) {
-            if (api_is_coach()) {                
+            if ($isCoach) {
                 if (!DocumentManager::is_visible($_GET['delete'], $_course, api_get_session_id())) {                    
                     api_not_allowed();
                 }
@@ -575,7 +576,7 @@ if ($is_allowed_to_edit) {
         }
         
         if (!$is_allowed_to_edit) {                
-            if (api_is_coach()) {                
+            if ($isCoach) {
                 if (!DocumentManager::is_visible_by_id($update_id, $_course, api_get_session_id(), api_get_user_id())) {                    
                     api_not_allowed();
                 }

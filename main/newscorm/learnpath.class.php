@@ -2394,7 +2394,7 @@ class learnpath
         if (empty($prereq)) {
             return '';
         }
-        //var_dump($this->refs_list, $prereq);
+
         if (preg_match('/^\d+$/', $prereq) && is_object($this->items[$prereq])) {
             // If the prerequisite is a simple integer ID and this ID exists as an item ID,
             // then simply return it (with the ITEM_ prefix).
@@ -8240,7 +8240,6 @@ class learnpath
 
                 $my_sub_dir = dirname($my_file_path);
                 $my_sub_dir = str_replace('\\', '/', $my_sub_dir);
-                //$my_xml_sub_dir = api_htmlentities(api_utf8_encode($my_sub_dir), ENT_QUOTES, 'UTF-8');
                 $my_xml_sub_dir = $my_sub_dir;
                 // Give a <resource> child to the <resources> element
                 $my_resource = $xmldoc->createElement('resource');
@@ -8271,7 +8270,6 @@ class learnpath
                     $my_dep->setAttribute('adlcp:scormtype', 'asset');
                     $my_dep_file = $xmldoc->createElement('file');
                     // Check type of URL.
-                    //error_log(__LINE__.'Now dealing with '.$doc_info[0].' of type '.$doc_info[1].'-'.$doc_info[2], 0);
                     if ($doc_info[1] == 'remote') {
                         // Remote file. Save url as is.
                         $my_dep_file->setAttribute('href', $doc_info[0]);
@@ -8325,11 +8323,9 @@ class learnpath
                                 if ($pos === 0) {
                                     $abs_img_path_without_subdir = '/'.substr($abs_img_path_without_subdir, strlen($relp));
                                 }
-                                //$file_path = realpath(api_get_path(SYS_PATH).$doc_info[0]);
                                 $file_path = realpath(api_get_path(SYS_PATH).$abs_img_path_without_subdir);
                                 $file_path = str_replace('\\', '/', $file_path);
                                 $file_path = str_replace('//', '/', $file_path);
-                                //error_log(__LINE__.'Abs path: '.$file_path, 0);
                                 // Prepare the current directory path (until just under 'document') with a trailing slash.
                                 $cur_path = substr($current_course_path, -1) == '/' ? $current_course_path : $current_course_path.'/';
                                 // Check if the current document is in that path.
@@ -8340,7 +8336,8 @@ class learnpath
                                     $orig_file_path = str_replace('\\', '/', $orig_file_path);
                                     $relative_path = '';
                                     if (strstr($file_path, $cur_path) !== false) {
-                                        $relative_path = substr($file_path, strlen($orig_file_path));
+                                        //$relative_path = substr($file_path, strlen($orig_file_path));
+                                        $relative_path = str_replace($cur_path, '', $file_path);
                                         $file_path = substr($file_path, strlen($cur_path));
                                     } else {
                                         // This case is still a problem as it's difficult to calculate a relative path easily
@@ -8370,6 +8367,7 @@ class learnpath
                                     $zip_files[] = $file_path;
                                     // Update the links to the current document in the containing document (make them relative).
                                     $link_updates[$my_file_path][] = array('orig' => $doc_info[0], 'dest' => $relative_path);
+
                                     $my_dep_file->setAttribute('href', $file_path);
                                     $my_dep->setAttribute('xml:base', '');
                                 } elseif (strstr($file_path, $main_path) !== false) {
@@ -8761,18 +8759,22 @@ class learnpath
         // then add the file to the zip, then destroy the file (this is done automatically).
         // http://www.reload.ac.uk/scormplayer.html - once done, don't forget to close FS#138
 
-        //error_log(print_r($zip_files,true), 0);
+        global $_configuration;
+        $append = $_configuration['url_append'];
         foreach ($zip_files as $file_path) {
             if (empty($file_path)) { continue; }
-            //error_log(__LINE__.'getting document from '.$sys_course_path.$_course['path'].'/'.$file_path.' removing '.$sys_course_path.$_course['path'].'/',0);
             $dest_file = $archive_path.$temp_dir_short.'/'.$file_path;
+
+            if (!empty($path_to_remove) && !empty($path_to_replace)) {
+                $dest_file = str_replace($path_to_remove, $path_to_replace, $dest_file);
+            }
+
             $this->create_path($dest_file);
-            //error_log('copy '.api_get_path(SYS_COURSE_PATH).$_course['path'].'/'.$file_path.' to '.api_get_path(SYS_ARCHIVE_PATH).$temp_dir_short.'/'.$file_path,0);
-            //echo $main_path.$file_path.'<br />';
             @copy($sys_course_path.$_course['path'].'/'.$file_path, $dest_file);
             // Check if the file needs a link update.
             if (in_array($file_path, array_keys($link_updates))) {
                 $string = file_get_contents($dest_file);
+
                 unlink($dest_file);
                 foreach ($link_updates[$file_path] as $old_new) {
                     //error_log('Replacing '.$old_new['orig'].' by '.$old_new['dest'].' in '.$file_path, 0);
@@ -8785,27 +8787,29 @@ class learnpath
                     } elseif (substr($old_new['dest'], -3) == 'flv' && substr($old_new['dest'], 0, 6) == 'video/') {
                         $old_new['dest'] = str_replace('video/', '../../../../video/', $old_new['dest']);
                     }
+
                     //Fix to avoid problems with default_course_document
                     if (strpos("main/default_course_document", $old_new['dest'] === false)) {
                         $new_dest = str_replace('document/', $mult.'document/', $old_new['dest']);
                     } else {
-                        //$new_dest = str_replace('main/default_course_document', $mult.'document/main/default_course_document', $old_new['dest']);
-                        $new_dest = $old_new['dest'];
+                        $new_dest = str_replace('document/', '', $old_new['dest']);
                     }
-
-                    //$string = str_replace($old_new['orig'], $old_new['dest'], $string);
+//                    var_dump($old_new['orig'], $new_dest);
                     $string = str_replace($old_new['orig'], $new_dest, $string);
 
                     //Add files inside the HTMLs
                     $new_path = str_replace('/courses/', '', $old_new['orig']);
-                    //var_dump($sys_course_path.$new_path); var_dump($archive_path.$temp_dir_short.'/'.$old_new['dest']); echo '---';
+                    $new_path = str_replace($append, '', $new_path);
+
+                    $destinationFile = $archive_path.$temp_dir_short.'/'.$old_new['dest'];
                     if (file_exists($sys_course_path.$new_path)) {
-                        copy($sys_course_path.$new_path, $archive_path.$temp_dir_short.'/'.$old_new['dest']);
-                    }
+                        copy($sys_course_path.$new_path, $destinationFile);
+                    }                    
                 }
                 file_put_contents($dest_file, $string);
             }
         }
+
         foreach ($zip_files_abs as $file_path) {
             if (empty($file_path)) { continue; }
             //error_log(__LINE__.'checking existence of '.$main_path.$file_path.'', 0);
@@ -8920,10 +8924,10 @@ EOD;
         }
         // Send file to client.
         //$name = 'scorm_export_'.$this->lp_id.'.zip';
+//exit;
         require_once api_get_path(LIBRARY_PATH).'fileUpload.lib.php';
-
+    
         $name = replace_dangerous_char($this->get_name()).'.zip';
-
         DocumentManager::file_send_for_download($temp_zip_file, true, $name);
     }
 

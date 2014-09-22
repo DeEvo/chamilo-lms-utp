@@ -311,12 +311,16 @@ if ($time_control) {
 
 			// First we update the attempt to today
 			// How the expired time is changed into "track_e_exercices" table,then the last attempt for this student should be changed too,so
-	        $sql_track_e_exe = "UPDATE $exercice_attemp_table SET tms = '".api_get_utc_datetime()."' WHERE exe_id = '".$exercise_stat_info['exe_id']."' AND tms = '".$last_attempt_date."' ";
+	        $sql = "UPDATE $exercice_attemp_table SET
+	                tms = '".api_get_utc_datetime()."'
+	                WHERE
+	                    exe_id = '".$exercise_stat_info['exe_id']."' AND
+	                    tms = '".$last_attempt_date."' ";
 	        if ($debug) {error_log('7.10. $sql_track_e_exe2: '.$sql_track_e_exe); }
-	        Database::query($sql_track_e_exe);
+	        Database::query($sql);
 
 	        //Sessions  that contain the expired time
-	        $_SESSION['expired_time'][$current_expired_time_key] 		= $clock_expired_time;
+	        $_SESSION['expired_time'][$current_expired_time_key] = $clock_expired_time;
 	        if ($debug) {error_log('7.11. Setting the $_SESSION[expired_time]: '.$_SESSION['expired_time'][$current_expired_time_key] ); };
         }
     } else {
@@ -411,7 +415,17 @@ if ($formSent && isset($_POST)) {
                     if (isset($exe_id)) {
                     	//Manage the question and answer attempts
                         if ($debug) { error_log('8.3. manage_answer exe_id: '.$exe_id.' - $questionId: '.$questionId.' Choice'.print_r($choice,1)); }
-                    	$objExercise->manage_answer($exe_id, $questionId, $choice,'exercise_show',$exerciseResultCoordinates, true, false,false, $objExercise->propagate_neg);
+                    	$objExercise->manage_answer(
+                            $exe_id,
+                            $questionId,
+                            $choice,
+                            'exercise_show',
+                            $exerciseResultCoordinates,
+                            true,
+                            false,
+                            false,
+                            $objExercise->propagate_neg
+                        );
                     }
                     //END of saving and qualifying
                 }
@@ -429,7 +443,7 @@ if ($formSent && isset($_POST)) {
 
     // if all questions on one page OR if it is the last question (only for an exercise with one question per page)
 
-    if (($objExercise->type == ALL_ON_ONE_PAGE || $current_question >= $question_count)) {
+    if ($objExercise->type == ALL_ON_ONE_PAGE || $current_question >= $question_count) {
         if (api_is_allowed_to_session_edit()) {
             // goes to the script that will show the result of the exercise
             if ($objExercise->type == ALL_ON_ONE_PAGE) {
@@ -437,9 +451,18 @@ if ($formSent && isset($_POST)) {
 
                 //We check if the user attempts before sending to the exercise_result.php
                 if ($objExercise->selectAttempts() > 0) {
-                    $attempt_count = get_attempt_count(api_get_user_id(), $exerciseId, $learnpath_id, $learnpath_item_id, $learnpath_item_view_id);
+                    $attempt_count = get_attempt_count(
+                        api_get_user_id(),
+                        $exerciseId,
+                        $learnpath_id,
+                        $learnpath_item_id,
+                        $learnpath_item_view_id
+                    );
                     if ($attempt_count >= $objExercise->selectAttempts()) {
-                        Display :: display_warning_message(sprintf(get_lang('ReachedMaxAttempts'), $exercise_title, $objExercise->selectAttempts()), false);
+                        Display :: display_warning_message(
+                            sprintf(get_lang('ReachedMaxAttempts'), $exercise_title, $objExercise->selectAttempts()),
+                            false
+                        );
                         if ($origin != 'learnpath') {
                             //so we are not in learnpath tool
                             echo '</div>'; //End glossary div
@@ -497,10 +520,18 @@ if ($question_count != 0) {
 
 	            //We check if the user attempts before sending to the exercise_result.php
 	            if ($objExercise->selectAttempts() > 0) {
-
-	                $attempt_count = get_attempt_count(api_get_user_id(), $exerciseId, $learnpath_id, $learnpath_item_id, $learnpath_item_view_id);
+	                $attempt_count = get_attempt_count(
+                        api_get_user_id(),
+                        $exerciseId,
+                        $learnpath_id,
+                        $learnpath_item_id,
+                        $learnpath_item_view_id
+                    );
 	                if ($attempt_count >= $objExercise->selectAttempts()) {
-	                    Display :: display_warning_message(sprintf(get_lang('ReachedMaxAttempts'), $exercise_title, $objExercise->selectAttempts()), false);
+	                    Display :: display_warning_message(
+                            sprintf(get_lang('ReachedMaxAttempts'), $exercise_title, $objExercise->selectAttempts()),
+                            false
+                        );
 	                    if ($origin != 'learnpath') {
 	                        //so we are not in learnpath tool
 	                        echo '</div>'; //End glossary div
@@ -761,177 +792,182 @@ if (!empty($error)) {
     }
 
     echo '<script>
+        $(function() {
+            //$(".exercise_save_now_button").hide();
+            $(".main_question").mouseover(function() {
+                //$(this).find(".exercise_save_now_button").show();
+                //$(this).addClass("question_highlight");
+            });
 
-            $(function() {
-    			//$(".exercise_save_now_button").hide();
-    		    $(".main_question").mouseover(function() {
-    		    	//$(this).find(".exercise_save_now_button").show();
-    		    	//$(this).addClass("question_highlight");
-                });
+            $(".main_question").mouseout(function() {
+                //$(this).find(".exercise_save_now_button").hide();
+                $(this).removeClass("question_highlight");
+            });
 
-                $(".main_question").mouseout(function() {
-                	//$(this).find(".exercise_save_now_button").hide();
-                	$(this).removeClass("question_highlight");
-                });
+            $(".no_remind_highlight").hide();
 
-                $(".no_remind_highlight").hide();
-    		});
-
-			function previous_question(question_num) {
-				url = "exercise_submit.php?'.$params.'&num="+question_num;
-				window.location = url;
-			}
-
-            function previous_question_and_save(previous_question_id, question_id_to_save) {
-                url = "exercise_submit.php?'.$params.'&num="+previous_question_id;
-                //Save the current question
-                save_now(question_id_to_save, url);
-            }
-
-            function save_question_list(question_list) {
-                $.each(question_list, function(key, question_id) {
-                    save_now(question_id, null, false);
-                });
-
-                var url = "";
-                if ('.$reminder.' == 1 ) {
-                    url = "exercise_reminder.php?'.$params.'&num='.$current_question.'";
-                } else if ('.$reminder.' == 2 ) {
-                    url = "exercise_submit.php?'.$params.'&num='.$current_question.'&remind_question_id='.$remind_question_id.'&reminder=2";
-                } else {
-                    url = "exercise_submit.php?'.$params.'&num='.$current_question.'&remind_question_id='.$remind_question_id.'";
-                }
-                //$("#save_for_now_"+question_id).html("'.addslashes(Display::return_icon('save.png', get_lang('Saved'), array(), ICON_SIZE_SMALL)).'");
-                window.location = url;
-            }
-
-            function save_now(question_id, url_extra) {
-           		//1. Normal choice inputs
-           		var my_choice = $(\'*[name*="choice[\'+question_id+\']"]\').serialize();
-
-           		//2. Reminder checkbox
-           		var remind_list = $(\'*[name*="remind_list"]\').serialize();
-
-           		//3. Hotspots
-           		var hotspot = $(\'*[name*="hotspot[\'+question_id+\']"]\').serialize();
-
-           		//Checking FCK
-           		if (typeof(FCKeditorAPI) !== "undefined") {
-    				var oEditor = FCKeditorAPI.GetInstance("choice["+question_id+"]") ;
-    				var fck_content = "";
-
-    				if (oEditor) {
-               			fck_content = oEditor.GetHTML();
-               			my_choice = {};
-               			my_choice["choice["+question_id+"]"] = fck_content;
-               			my_choice = $.param(my_choice);
-               		}
-                }
-
-                if ($(\'input[name="remind_list[\'+question_id+\']"]\').is(\':checked\')) {
-                	$("#question_div_"+question_id).addClass("remind_highlight");
-                } else {
-                	$("#question_div_"+question_id).removeClass("remind_highlight");
-                }
-
-           		// Only for the first time
-
-          		$("#save_for_now_"+question_id).html("'.addslashes(Display::return_icon('loading1.gif')).'");
-                    $.ajax({
-                        type:"post",
-                        async: false,
-                        url: "'.api_get_path(WEB_AJAX_PATH).'exercise.ajax.php?a=save_exercise_by_now",
-                        data: "'.$params.'&type=simple&question_id="+question_id+"&"+my_choice+"&"+hotspot+"&"+remind_list,
-                        success: function(return_value) {
-                        	if (return_value == "ok") {
-                        		$("#save_for_now_"+question_id).html("'.addslashes(Display::return_icon('save.png', get_lang('Saved'), array(), ICON_SIZE_SMALL)).'");
-                        	} else if (return_value == "error") {
-                        		$("#save_for_now_"+question_id).html("'.addslashes(Display::return_icon('error.png', get_lang('Error'), array(), ICON_SIZE_SMALL)).'");
-                        	} else if (return_value == "one_per_page") {
-                        		var url = "";
-								if ('.$reminder.' == 1 ) {
-                        			url = "exercise_reminder.php?'.$params.'&num='.$current_question.'";
-								} else if ('.$reminder.' == 2 ) {
-									url = "exercise_submit.php?'.$params.'&num='.$current_question.'&remind_question_id='.$remind_question_id.'&reminder=2";
-								} else {
-									url = "exercise_submit.php?'.$params.'&num='.$current_question.'&remind_question_id='.$remind_question_id.'";
-								}
-
-                                if (url_extra) {
-                                    url = url_extra;
-                                }
-
-                                $("#save_for_now_"+question_id).html("'.addslashes(Display::return_icon('save.png', get_lang('Saved'), array(), ICON_SIZE_SMALL)).'");
-
-								window.location = url;
-                        	}
-                        },
-                        error: function() {
-                            $("#save_for_now_"+question_id).html("'.addslashes(Display::return_icon('error.png', get_lang('Error'), array(), ICON_SIZE_SMALL)).'");
-                        }
-                    });
+            // if the users validates the form using return key, prevent form action and simulates click on validation button
+            /*$("#exercise_form").submit(function(){
+                $(".question-validate-btn").first().trigger("click");
                 return false;
+            });*/
+        });
+
+		function previous_question(question_num) {
+			url = "exercise_submit.php?'.$params.'&num="+question_num;
+			window.location = url;
+		}
+
+        function previous_question_and_save(previous_question_id, question_id_to_save) {
+            url = "exercise_submit.php?'.$params.'&num="+previous_question_id;
+            //Save the current question
+            save_now(question_id_to_save, url);
+        }
+
+        function save_question_list(question_list) {
+            $.each(question_list, function(key, question_id) {
+                save_now(question_id, null, false);
+            });
+
+            var url = "";
+            if ('.$reminder.' == 1 ) {
+                url = "exercise_reminder.php?'.$params.'&num='.$current_question.'";
+            } else if ('.$reminder.' == 2 ) {
+                url = "exercise_submit.php?'.$params.'&num='.$current_question.'&remind_question_id='.$remind_question_id.'&reminder=2";
+            } else {
+                url = "exercise_submit.php?'.$params.'&num='.$current_question.'&remind_question_id='.$remind_question_id.'";
+            }
+            //$("#save_for_now_"+question_id).html("'.addslashes(Display::return_icon('save.png', get_lang('Saved'), array(), ICON_SIZE_SMALL)).'");
+            window.location = url;
+        }
+
+        function save_now(question_id, url_extra) {
+            //1. Normal choice inputs
+            var my_choice = $(\'*[name*="choice[\'+question_id+\']"]\').serialize();
+
+            //2. Reminder checkbox
+            var remind_list = $(\'*[name*="remind_list"]\').serialize();
+
+            //3. Hotspots
+            var hotspot = $(\'*[name*="hotspot[\'+question_id+\']"]\').serialize();
+
+            //Checking FCK
+            if (typeof(FCKeditorAPI) !== "undefined") {
+                var oEditor = FCKeditorAPI.GetInstance("choice["+question_id+"]") ;
+                var fck_content = "";
+
+                if (oEditor) {
+                    fck_content = oEditor.GetHTML();
+                    my_choice = {};
+                    my_choice["choice["+question_id+"]"] = fck_content;
+                    my_choice = $.param(my_choice);
+                }
             }
 
-            function save_now_all(validate) {
-            	// 1. Input choice.
-           		var my_choice = $(\'*[name*="choice"]\').serialize();
+            if ($(\'input[name="remind_list[\'+question_id+\']"]\').is(\':checked\')) {
+                $("#question_div_"+question_id).addClass("remind_highlight");
+            } else {
+                $("#question_div_"+question_id).removeClass("remind_highlight");
+            }
 
-           		// 2. Reminder.
-           		var remind_list = $(\'*[name*="remind_list"]\').serialize();
+            // Only for the first time
 
-           		// 3. Hotspots.
-           		var hotspot = $(\'*[name*="hotspot"]\').serialize();
-
-           		// Question list.
-           		var question_list = ['.implode(',', $questionList).'];
-
-           		var free_answers = {};
-
-           		$.each(question_list, function(index, my_question_id) {
-           			//Checking FCK
-           			if (typeof(FCKeditorAPI) !== "undefined") {
-               			var oEditor = FCKeditorAPI.GetInstance("choice["+my_question_id+"]") ;
-        				var fck_content = "";
-        				if (oEditor) {
-                   			fck_content = oEditor.GetHTML();
-                   			//alert(index + "  " +my_question_id + " " +fck_content);
-                   		 	free_answers["free_choice["+my_question_id+"]"] = fck_content;
-                   		}
-               		}
-           		});
-
-           		// lok+(fgt)= data base
-           		free_answers = $.param(free_answers);
-
-          		$("#save_all_reponse").html("'.addslashes(Display::return_icon('loading1.gif')).'");
-
+            $("#save_for_now_"+question_id).html("'.addslashes(Display::return_icon('loading1.gif')).'");
                 $.ajax({
                     type:"post",
                     async: false,
                     url: "'.api_get_path(WEB_AJAX_PATH).'exercise.ajax.php?a=save_exercise_by_now",
-                    data: "'.$params.'&type=all&"+my_choice+"&"+hotspot+"&"+free_answers+"&"+remind_list,
+                    data: "'.$params.'&type=simple&question_id="+question_id+"&"+my_choice+"&"+hotspot+"&"+remind_list,
                     success: function(return_value) {
-                    	if (return_value == "ok") {
-                    		//$("#save_all_reponse").html("'.addslashes(Display::return_icon('accept.png')).'");
-                    		if (validate == "validate") {
-                            	window.location = "'.$script_php.'?'.$params.'";
+                        if (return_value == "ok") {
+                            $("#save_for_now_"+question_id).html("'.addslashes(Display::return_icon('save.png', get_lang('Saved'), array(), ICON_SIZE_SMALL)).'");
+                        } else if (return_value == "error") {
+                            $("#save_for_now_"+question_id).html("'.addslashes(Display::return_icon('error.png', get_lang('Error'), array(), ICON_SIZE_SMALL)).'");
+                        } else if (return_value == "one_per_page") {
+                            var url = "";
+                            if ('.$reminder.' == 1 ) {
+                                url = "exercise_reminder.php?'.$params.'&num='.$current_question.'";
+                            } else if ('.$reminder.' == 2 ) {
+                                url = "exercise_submit.php?'.$params.'&num='.$current_question.'&remind_question_id='.$remind_question_id.'&reminder=2";
                             } else {
-                            	$("#save_all_reponse").html("'.addslashes(Display::return_icon('accept.png')).'");
+                                url = "exercise_submit.php?'.$params.'&num='.$current_question.'&remind_question_id='.$remind_question_id.'";
                             }
-                    	} else {
-                        	$("#save_all_reponse").html("'.addslashes(Display::return_icon('wrong.gif')).'");
+
+                            if (url_extra) {
+                                url = url_extra;
+                            }
+
+                            $("#save_for_now_"+question_id).html("'.addslashes(Display::return_icon('save.png', get_lang('Saved'), array(), ICON_SIZE_SMALL)).'");
+
+                            window.location = url;
                         }
+                    },
+                    error: function() {
+                        $("#save_for_now_"+question_id).html("'.addslashes(Display::return_icon('error.png', get_lang('Error'), array(), ICON_SIZE_SMALL)).'");
                     }
                 });
-                return false;
-            }
+            return false;
+        }
 
-            function validate_all() {
-   				save_now_all("validate");
-                return false;
-            }
-		</script>';
+        function save_now_all(validate) {
+            // 1. Input choice.
+            var my_choice = $(\'*[name*="choice"]\').serialize();
+
+            // 2. Reminder.
+            var remind_list = $(\'*[name*="remind_list"]\').serialize();
+
+            // 3. Hotspots.
+            var hotspot = $(\'*[name*="hotspot"]\').serialize();
+
+            // Question list.
+            var question_list = ['.implode(',', $questionList).'];
+
+            var free_answers = {};
+
+            $.each(question_list, function(index, my_question_id) {
+                //Checking FCK
+                if (typeof(FCKeditorAPI) !== "undefined") {
+                    var oEditor = FCKeditorAPI.GetInstance("choice["+my_question_id+"]") ;
+                    var fck_content = "";
+                    if (oEditor) {
+                        fck_content = oEditor.GetHTML();
+                        //alert(index + "  " +my_question_id + " " +fck_content);
+                        free_answers["free_choice["+my_question_id+"]"] = fck_content;
+                    }
+                }
+            });
+
+            // lok+(fgt)= data base
+            free_answers = $.param(free_answers);
+
+            $("#save_all_reponse").html("'.addslashes(Display::return_icon('loading1.gif')).'");
+
+            $.ajax({
+                type:"post",
+                async: false,
+                url: "'.api_get_path(WEB_AJAX_PATH).'exercise.ajax.php?a=save_exercise_by_now",
+                data: "'.$params.'&type=all&"+my_choice+"&"+hotspot+"&"+free_answers+"&"+remind_list,
+                success: function(return_value) {
+                    if (return_value == "ok") {
+                        //$("#save_all_reponse").html("'.addslashes(Display::return_icon('accept.png')).'");
+                        if (validate == "validate") {
+                            window.location = "'.$script_php.'?'.$params.'";
+                        } else {
+                            $("#save_all_reponse").html("'.addslashes(Display::return_icon('accept.png')).'");
+                        }
+                    } else {
+                        $("#save_all_reponse").html("'.addslashes(Display::return_icon('wrong.gif')).'");
+                    }
+                }
+            });
+            return false;
+        }
+
+        function validate_all() {
+            save_now_all("validate");
+            return false;
+        }
+    </script>';
 
     echo '<form id="exercise_form" method="post" action="'.api_get_self().'?'.api_get_cidreq().'&autocomplete=off&gradebook='.$gradebook."&exerciseId=" . $exerciseId .'" name="frm_exercise" '.$onsubmit.'>
          <input type="hidden" name="formSent"				value="1" />
@@ -1011,7 +1047,7 @@ if (!empty($error)) {
 
             //BUtton save and continue
             switch ($objExercise->type) {
-                case ONE_PER_PAGE:
+	        case ONE_PER_PAGE:
                     $exercise_actions .= $objExercise->show_button($questionId, $current_question);
                     break;
                 case ALL_ON_ONE_PAGE :

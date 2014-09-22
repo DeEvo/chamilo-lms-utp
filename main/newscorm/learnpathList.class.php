@@ -33,7 +33,7 @@ class learnpathList
      * @param	int			Optional session id (otherwise we use api_get_session_id())
      * @return	void
      */
-    function __construct($user_id, $course_code = '', $session_id = null, $order_by = null, $check_publication_dates = false)
+    function __construct($user_id, $course_code = '', $session_id = null, $order_by = null, $check_publication_dates = false, $getLPFromAllSessions = false)
     {
         $course_info = api_get_course_info($course_code);
         $lp_table = Database::get_course_table(TABLE_LP_MAIN);
@@ -55,6 +55,10 @@ class learnpathList
             $session_id = api_get_session_id();
         }
         $condition_session = api_get_session_condition($session_id, true, true);
+
+        if ($getLPFromAllSessions) {
+            $condition_session = null;
+        }
         $order = "ORDER BY display_order ASC, name ASC";
         if (isset($order_by)) {
             $order = Database::parse_conditions(array('order' => $order_by));
@@ -63,10 +67,10 @@ class learnpathList
         $time_conditions = '';
 
         if ($check_publication_dates) {
-            $time_conditions = " AND ( (publicated_on <> '0000-00-00 00:00:00' AND publicated_on < '$now'  AND expired_on <> '0000-00-00 00:00:00'  AND expired_on > '$now' )  OR 
+            $time_conditions = " AND ( (publicated_on <> '0000-00-00 00:00:00' AND publicated_on < '$now'  AND expired_on <> '0000-00-00 00:00:00'  AND expired_on > '$now' )  OR
                         (publicated_on <> '0000-00-00 00:00:00'  AND publicated_on < '$now'  AND expired_on = '0000-00-00 00:00:00') OR
-                        (publicated_on = '0000-00-00 00:00:00'   AND expired_on <> '0000-00-00 00:00:00' AND expired_on > '$now') OR                        
-                        (publicated_on = '0000-00-00 00:00:00'   AND expired_on = '0000-00-00 00:00:00' )) 
+                        (publicated_on = '0000-00-00 00:00:00'   AND expired_on <> '0000-00-00 00:00:00' AND expired_on > '$now') OR
+                        (publicated_on = '0000-00-00 00:00:00'   AND expired_on = '0000-00-00 00:00:00' ))
             ";
         }
 
@@ -177,14 +181,20 @@ class learnpathList
      *  @param int  Id of session
      *  @return array List of lessons with lessons id as keys
      */
-    static function get_course_lessons($course_code, $session_id)
+    static function get_course_lessons($course_code, $session_id = null)
     {
         $tbl_course_lp = Database::get_course_table(TABLE_LP_MAIN);
-
         $course = api_get_course_info($course_code);
-        //QUery
+        $sessionCondition = null;
+        if (!empty($session_id)) {
+            $sessionCondition = api_get_session_condition(
+                $session_id,
+                true,
+                false
+            );
+        }
         $sql = "SELECT * FROM $tbl_course_lp
-        WHERE c_id = %s ";  //TODO AND session_id = %s ? 
+                WHERE c_id = %s $sessionCondition ";  //TODO AND session_id = %s ?
         $sql_query = sprintf($sql, $course['real_id']);
         $result = Database::query($sql_query);
 
@@ -228,7 +238,7 @@ class learnpathList
                 $units[$row['option_value']]['lp_id'] = $lpId;
             }
         }
-        
+
         return $units;
     }
 

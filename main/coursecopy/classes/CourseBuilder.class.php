@@ -120,12 +120,18 @@ class CourseBuilder
      */
 	function build($session_id = 0, $course_code = '', $with_base_content = false)
     {
-        $table_link       = Database :: get_course_table(TABLE_LINKED_RESOURCES);
+        $table_link = Database :: get_course_table(TABLE_LINKED_RESOURCES);
         $table_properties = Database :: get_course_table(TABLE_ITEM_PROPERTY);
 
-        $course_info      = api_get_course_info($course_code);
-        $course_id        = $course_info['real_id'];
+        $course_info = api_get_course_info($course_code);
 
+        if (empty($course_info)) {
+            return false;
+        }
+
+        $course_code = $course_info['code'];
+
+        $course_id = $course_info['real_id'];
         foreach ($this->tools_to_build as $tool) {
             $function_build = 'build_'.$tool;
             $specificIdList = isset($this->specific_id_list[$tool]) ? $this->specific_id_list[$tool] : null;
@@ -172,6 +178,8 @@ class CourseBuilder
 
         $table_doc   = Database::get_course_table(TABLE_DOCUMENT);
         $table_prop  = Database::get_course_table(TABLE_ITEM_PROPERTY);
+
+        $this->filterBuildDocuments($course_info['code']);
 
         //Remove chat_files and shared_folder files
         $avoid_paths = " path NOT LIKE '/shared_folder%' AND
@@ -243,6 +251,106 @@ class CourseBuilder
             while ($obj = Database::fetch_object($db_result)) {
                 $doc = new Document($obj->id, $obj->path, $obj->comment, $obj->title, $obj->filetype, $obj->size);
                 $this->course->add_resource($doc);
+            }
+        }
+    }
+
+    /**
+     * Create new documents if the document belongs in the course user shared folder     *
+     * @example:
+     * /courses/XXX/document/shared_folder/sf_user_3/Selection_001.png
+     * to:
+     * /shared_folder/Selection_001.png
+     * @param string $course_code
+     * @return void
+     */
+    private function filterBuildDocuments($course_code)
+    {
+        $arrayDocuments = $this->getDocumentOfToolIntro($course_code);
+
+        // unique files
+        if (is_array($arrayDocuments) && count($arrayDocuments) > 0) {
+            foreach ($arrayDocuments as $index => $array) {
+                $arrayDocuments[$index] = array_unique($array);
+            }
+        }
+
+        // add document
+        $sharedFolderPath = api_get_path(SYS_PATH) . "courses/$course_code/document/shared_folder/";
+        foreach ($arrayDocuments as $document) {
+            foreach ($document as $key => $value) {
+                $insideSharedFolder = explode("/shared_folder/", $value);
+                $item = explode("/document", $value);
+                $folders = explode("/", $insideSharedFolder[1]);
+                $folderToAdd = null;
+                $folderToAddList = array();
+                $counter = 0;
+
+                if (strpos($folders[0], 'sf_user' === false)) {
+                    continue;
+                }
+
+                foreach ($folders as $folder) {
+                    if ($counter == 0) {
+                        $counter++;
+                        continue;
+                    }
+                    if ($counter == count($folders) -1) {
+                        break;
+                    }
+                    $folderToAdd .= '/' . $folder;
+                    $folderToAddList[] = $folderToAdd;
+                    $counter++;
+                }
+
+                if (!empty($folderToAdd)) {
+                    $folderToAdd .= '/';
+                    $folderToAdd = ltrim($folderToAdd, '/');
+                    foreach ($folderToAddList as $folder) {
+                        mkdir($sharedFolderPath.$folder, api_get_permissions_for_new_directories());
+                    }
+                }
+
+                $filename = substr(strrchr($item[1], "/"), 1);
+
+                $srcFile = api_get_path(SYS_COURSE_PATH) .$course_code.'/document'.$item[1];
+                $desFile = $sharedFolderPath . $folderToAdd . $filename;
+
+                copy($srcFile, $desFile);
+                $item2 = explode("/document", $desFile);
+                $fileSize = filesize($srcFile);
+                $doc = new Document(
+                    uniqid(),
+                    $item2[1],
+                    'NULL',
+                    "$filename",
+                    'file',
+                    $fileSize
+                );
+                $this->course->add_resource($doc);
+            }
+        }
+    }
+
+    /**
+     * Delete files that were copied temporarily by filterBuildDocuments()
+     * a /courses/XXX/document/shared_folder/
+     * @return void
+     */
+    public function filterBuildDocumentsClean()
+    {
+        $course_info = api_get_course_info();
+        $course_code = $course_info['code'];
+        $arrayDocuments = $this->getDocumentOfToolIntro($course_code);
+        // add document
+        if (is_array($arrayDocuments) && count($arrayDocuments) > 0) {
+            foreach ($arrayDocuments as $document) {
+                foreach ($document as $key => $value) {
+                    $item = explode("/document", $value);
+                    $filename = substr(strrchr($item[1], "/"), 1);
+                    $rmFile = api_get_path(SYS_PATH) . "courses/$course_code/document/shared_folder/" . $filename;
+                    @unlink($rmFile);
+                }
             }
         }
     }
@@ -379,10 +487,127 @@ class CourseBuilder
         $sql = "SELECT * FROM $table WHERE c_id = $course_id ";
         $db_result = Database::query($sql);
         while ($obj = Database::fetch_object($db_result)) {
-            $tool_intro = new ToolIntro($obj->id, $obj->intro_text);
+            $stringIntroText = $this->filterToolIntro($course_code, $obj->intro_text);
+            $tool_intro = new ToolIntro($obj->id, $stringIntroText);
             $this->course->add_resource($tool_intro);
         }
     }
+
+    /**
+     * @param string $course_code
+     *
+     * @return array document list
+     */
+    private function getDocumentOfToolIntro($course_code)
+    {
+        $table = Database :: get_course_table(TABLE_TOOL_INTRO);
+        $course_id = api_get_course_int_id();
+        $sql = "SELECT * FROM $table WHERE c_id = $course_id ";
+        $db_result = Database::query($sql);
+
+        $pathBase = '/courses/' . $course_code . '/document/shared_folder/';
+        $arraySrc = array();
+        while ($obj = Database::fetch_object($db_result)) {
+            $stringIntroText = $obj->intro_text;
+            if (!is_null($stringIntroText) || !empty($stringIntroText)) {
+                $pos = strpos($stringIntroText, $pathBase);
+                if ($pos === false) {
+                    //
+                } else {
+                    $arraySrc[] = $this->getSrcOfHtml($stringIntroText, 'shared_folder');
+                }
+            }
+        }
+
+        return $arraySrc;
+    }
+
+    /**
+     * Changes file path
+     * From:
+     * courses/XXX/document/shared_folder/sf_user_3/image.jpg
+     * to:
+     * document/shared_folder/image.jpg
+     *
+     * @param string $courseCode
+     * @param string $text
+     *
+     * @return string
+     */
+    private function filterToolIntro($courseCode, $text)
+    {
+        $pathBase = '/courses/' . $courseCode . '/document/shared_folder';
+        $pos = strpos($text, $pathBase);
+        if ($pos === false) {
+            //
+        } else {
+            $arraySrc = $this->getSrcOfHtml($text, 'shared_folder');
+            if (is_array($arraySrc) && count($arraySrc) > 0) {
+                foreach ($arraySrc as $value) {
+                    $sharedFolder = explode('/shared_folder/', $value);
+                    $sharedFolderPart = $sharedFolder[1];
+                    $sharedFolderPart = explode('/', $sharedFolderPart);
+
+                    if (strpos($sharedFolderPart[0], 'sf_user') === false) {
+                        continue;
+                    } else {
+                        $counter = 0;
+                        $fileToAdd = null;
+                        foreach ($sharedFolderPart as $part) {
+                            if ($counter == 0) {
+                                $counter++;
+                                continue;
+                            }
+                            $fileToAdd .= '/'.$part;
+
+                            $counter++;
+                        }
+                    }
+                    $pathBaseReplace = $pathBase . $fileToAdd;
+                    $text = str_replace($value, $pathBaseReplace, $text);
+                }
+            }
+        }
+        return $text;
+    }
+
+    /**
+     * Get all src attributes from an HTML
+     *
+     * @param string $string
+     * @param string $filter only get "src" depending of this attribute
+     * @return array list path document
+     */
+    private function getSrcOfHtml($string, $filter = '')
+    {
+        $src = array();
+        if (!empty($string)) {
+            $array = explode("src=", $string);
+            unset($array[0]);
+            $array = array_values($array);
+            for ($i = 0; $i < count($array); $i++) {
+                $arreglo = explode('"', $array[$i]);
+                if (isset($arreglo[0])) {
+                    $src[] = $arreglo[1];
+                }
+            }
+
+            // filter
+            if (!empty($filter)) {
+                $srcFilter = array();
+                for ($i = 0; $i < count($src); $i++) {
+                    $pos = strpos($src[$i], $filter);
+                    if ($pos !== false) {
+                        $srcFilter[] = $src[$i];
+                    }
+                }
+                $src = $srcFilter;
+            }
+        }
+
+        return $src;
+    }
+
 
     /**
      * Build a link category

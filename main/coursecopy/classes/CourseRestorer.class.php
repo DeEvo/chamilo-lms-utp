@@ -268,7 +268,6 @@ class CourseRestorer
 
 			foreach ($resources[RESOURCE_DOCUMENT] as $id => $document) {
 				$path = api_get_path(SYS_COURSE_PATH).$this->course->destination_path.'/';
-				//$dirs = explode('/', dirname($document->path));
 
                 if (empty($document->item_properties[0]['id_session'])) {
                     $my_session_id = 0;
@@ -292,16 +291,22 @@ class CourseRestorer
                     //Checking if folder exists in the database otherwise we created it
                     $dir_to_create = dirname($document->path);
                     if (!empty($dir_to_create) && $dir_to_create != 'document' && $dir_to_create != '/') {
+
                         if (is_dir($path.dirname($document->path))) {
-                            $sql = "SELECT id FROM ".$table." WHERE c_id = ".$this->destination_course_id." AND path = '/".self::DBUTF8escapestring(substr(dirname($document->path), 9))."'";
+                            $sql = "SELECT id FROM ".$table."
+                                    WHERE
+                                        c_id = ".$this->destination_course_id." AND
+                                        path = '/".self::DBUTF8escapestring(substr(dirname($document->path), 9))."'";
                             $res = Database::query($sql);
                             if (Database::num_rows($res) == 0) {
                                 //continue;
                                 $visibility = $document->item_properties[0]['visibility'];
                                 $new        = '/'.substr(dirname($document->path), 9);
-                                $title      = str_replace('/', '', $new);
+                                $title = basename($new);
+                                $title      = str_replace('/', '', $title);
 
                                 // This code fixes the possibility for a file without a directory entry to be
+                                var_dump($new);
                                 $document_id = add_document($course_info, $new, 'folder', 0, $title, null, null, false);
                                 api_item_property_update($course_info, TOOL_DOCUMENT, $document_id, 'FolderCreated', $document->item_properties[0]['insert_user_id'], $document->item_properties[0]['to_group_id'], $document->item_properties[0]['to_user_id'], null, null, $my_session_id);
                             }

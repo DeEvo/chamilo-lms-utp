@@ -56,7 +56,10 @@ switch ($action) {
             if (api_get_setting('allow_send_message_to_all_platform_users') == 'true' || api_is_platform_admin() ) {
                 $sql = 'SELECT DISTINCT u.user_id as id, '.($is_western_name_order ? 'concat(u.firstname," ",u.lastname," ","( ",u.email," )")' : 'concat(u.lastname," ",u.firstname," ","( ",u.email," )")').' as name
                 FROM '.$tbl_user.' u
-                WHERE u.status <> 6  AND u.user_id <>'.$user_id.' AND '.($is_western_name_order ? 'concat(u.firstname, " ", u.lastname)' : 'concat(u.lastname, " ", u.firstname)').' LIKE CONCAT("%","'.$search.'","%") ';
+                WHERE u.status <> 6  AND u.user_id <>'.$user_id.' AND ('.
+                ($is_western_name_order ? 'concat(u.firstname, " ", u.lastname)' : 'concat(u.lastname, " ", u.firstname)').' LIKE CONCAT("%","'.$search.'","%") OR ' .
+                'concat(SUBSTRING(u.firstname, 1, LOCATE(" ",u.firstname) - 1), " ", SUBSTRING(u.lastname, 1, LOCATE(" ",u.lastname) - 1)) LIKE CONCAT("%","'.$search.'","%") OR ' .
+                'concat(SUBSTRING(u.lastname, 1, LOCATE(" ",u.lastname) - 1), " ", SUBSTRING(u.firstname, 1, LOCATE(" ",u.firstname) - 1)) LIKE CONCAT("%","'.$search.'","%") )';
             } else {
                 $time_limit = api_get_setting('time_limit_whosonline');
                 $online_time 	= time() - $time_limit*60;

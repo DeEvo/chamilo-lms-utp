@@ -332,8 +332,10 @@ jQuery(
 	        	
 				function addMembers(etext, data)
 				{
+                    if (!options.filter_list_before_show) {
+                        etext = '';
+                    }
 					feed.html('');
-					
 					if (!options.cache) 
 					{
 						cache = new Array();
@@ -635,7 +637,8 @@ jQuery(
 				        complete_text: "Start to type...",
 						maxshownitems:  30,
 						onselect: "",
-						onremove: ""
+						onremove: "",
+                        filter_list_before_show: true
 			        }, opt);
 	        	
 		        //system variables

@@ -73,7 +73,8 @@ class Answer
 
         // fills arrays
         $objExercise = new Exercise($this->course_id);
-        $objExercise->read($_REQUEST['exerciseId']);
+        $exerciseId = isset($_REQUEST['exerciseId']) ? $_REQUEST['exerciseId'] : null;
+        $objExercise->read($exerciseId);
         if ($objExercise->random_answers == '1') {
             $this->readOrderedBy('rand()', '');// randomize answers
         } else {
@@ -84,7 +85,7 @@ class Answer
     /**
      * Clears $new_* arrays
      *
-     * @author - Olivier Brouckaert
+     * @author Olivier Brouckaert
      */
     function cancel() {
         $this->new_answer				= array();
@@ -99,11 +100,12 @@ class Answer
     }
 
     /**
-     * Reads answer informations from the data base
+     * Reads answer information from the database
      *
-     * @author - Olivier Brouckaert
+     * @author Olivier Brouckaert
      */
-    function read() {
+    public function read()
+    {
         $TBL_ANSWER = Database::get_course_table(TABLE_QUIZ_ANSWER);
         $questionId = $this->questionId;
 
@@ -133,30 +135,30 @@ class Answer
      /**
      * returns all answer ids from this question Id
      *
-     * @author - Yoselyn Castillo
-     * @return - array - $id (answer ids)
+     * @author Yoselyn Castillo
+     * @return array - $id (answer ids)
      */
-    function selectAnswerId()
+    public function selectAnswerId()
     {
-		    $TBL_ANSWER = Database::get_course_table(TABLE_QUIZ_ANSWER);
-		    $questionId = $this->questionId;
+        $TBL_ANSWER = Database::get_course_table(TABLE_QUIZ_ANSWER);
+        $questionId = $this->questionId;
 
-		    $sql="SELECT id FROM
-		          $TBL_ANSWER WHERE c_id = {$this->course_id} AND question_id ='".$questionId."'";
+        $sql="SELECT id FROM
+              $TBL_ANSWER WHERE c_id = {$this->course_id} AND question_id ='".$questionId."'";
 
-		    $result = Database::query($sql);
-		    $id = array();
+        $result = Database::query($sql);
+        $id = array();
 		    // while a record is found
         if (Database::num_rows($result) > 0) {
             while ($object = Database::fetch_array($result)) {
-    			      $id[] = $object['id'];
-    		    }
+                  $id[] = $object['id'];
+            }
         }
-		    return $id;
+        return $id;
 	}
 
     /**
-     * reads answer informations from the data base ordered by parameter
+     * Reads answer information from the data base ordered by parameter
      * @param	string	Field we want to order by
      * @param	string	DESC or ASC
      * @author 	Frederic Vauthier
@@ -185,10 +187,10 @@ class Answer
                "ORDER BY $field $order";
 		$result=Database::query($sql);
 
-		$i=1;
+		$i = 1;
 		// while a record is found
 		$doubt_data = null;
-		while($object=Database::fetch_object($result)) {
+		while($object = Database::fetch_object($result)) {
 		    if ($question_type['type'] == UNIQUE_ANSWER_NO_OPTION && $object->position == 666) {
 		        $doubt_data = $object;
                 continue;
@@ -224,14 +226,14 @@ class Answer
 	 */
 	function selectAutoId($id)
     {
-		return $this->autoId[$id];
+		return isset($this->autoId[$id]) ? $this->autoId[$id] : null;
 	}
 
 	/**
 	 * returns the number of answers in this question
 	 *
-	 * @author - Olivier Brouckaert
-	 * @return - integer - number of answers
+	 * @author Olivier Brouckaert
+	 * @return integer - number of answers
 	 */
 	function selectNbrAnswers()
     {
@@ -241,8 +243,8 @@ class Answer
 	/**
 	 * returns the question ID which the answers belong to
 	 *
-	 * @author - Olivier Brouckaert
-	 * @return - integer - the question ID
+	 * @author Olivier Brouckaert
+	 * @return integer - the question ID
 	 */
 	function selectQuestionId()
     {
@@ -252,22 +254,24 @@ class Answer
 	/**
 	 * returns the question ID of the destination question
 	 *
-	 * @author - Julio Montoya
-	 * @return - integer - the question ID
+	 * @author Julio Montoya
+	 * @return integer - the question ID
 	 */
-	function selectDestination($id) {
-		return $this->destination[$id];
+	function selectDestination($id)
+    {
+		return isset($this->destination[$id]) ? $this->destination[$id] : null;
 	}
 
     /**
 	 * returns the answer title
 	 *
-	 * @author - Olivier Brouckaert
+	 * @author Olivier Brouckaert
 	 * @param - integer $id - answer ID
-	 * @return - string - answer title
+	 * @return string - answer title
 	 */
-	function selectAnswer($id) {
-		return $this->answer[$id];
+	function selectAnswer($id)
+        {
+        return isset($this->answer[$id]) ? $this->answer[$id] : null;
 	}
 
 	/**
@@ -290,9 +294,9 @@ class Answer
     /**
      * returns the answer title from an answer's position
      *
-     * @author - Yannick Warnier
+     * @author Yannick Warnier
      * @param - integer $id - answer ID
-     * @return - bool - answer title
+     * @return bool - answer title
      */
 	function selectAnswerIdByPosition($pos) {
 		foreach ($this->position as $k => $v) {
@@ -368,49 +372,49 @@ class Answer
 	/**
 	 * tells if answer is correct or not
 	 *
-	 * @author - Olivier Brouckaert
+	 * @author Olivier Brouckaert
 	 * @param - integer $id - answer ID
-	 * @return - integer - 0 if bad answer, not 0 if good answer
+	 * @return integer - 0 if bad answer, not 0 if good answer
 	 */
 	function isCorrect($id)
 	{
-		return $this->correct[$id];
+		return isset($this->correct[$id]) ? $this->correct[$id] : null;
 	}
 
 	/**
 	 * returns answer comment
 	 *
-	 * @author - Olivier Brouckaert
+	 * @author Olivier Brouckaert
 	 * @param - integer $id - answer ID
-	 * @return - string - answer comment
+	 * @return string - answer comment
 	 */
 	function selectComment($id)
 	{
-		return $this->comment[$id];
+        return isset($this->comment[$id]) ? $this->comment[$id] : null;
 	}
 
 	/**
 	 * returns answer weighting
 	 *
-	 * @author - Olivier Brouckaert
+	 * @author Olivier Brouckaert
 	 * @param - integer $id - answer ID
-	 * @return - integer - answer weighting
+	 * @return integer - answer weighting
 	 */
 	function selectWeighting($id)
 	{
-		return $this->weighting[$id];
+		return isset($this->weighting[$id]) ? $this->weighting[$id] : null;
 	}
 
 	/**
 	 * returns answer position
 	 *
-	 * @author - Olivier Brouckaert
+	 * @author Olivier Brouckaert
 	 * @param - integer $id - answer ID
-	 * @return - integer - answer position
+	 * @return integer - answer position
 	 */
 	function selectPosition($id)
 	{
-		return $this->position[$id];
+		return isset($this->position[$id]) ? $this->position[$id] : null;
 	}
 
 	/**
@@ -422,7 +426,7 @@ class Answer
 	 */
 	function selectHotspotCoordinates($id)
 	{
-		return $this->hotspot_coordinates[$id];
+		return isset($this->hotspot_coordinates[$id]) ? $this->hotspot_coordinates[$id] : null;
 	}
 
 	/**
@@ -434,11 +438,11 @@ class Answer
 	 */
 	function selectHotspotType($id)
 	{
-		return $this->hotspot_type[$id];
+		return isset($this->hotspot_type[$id]) ? $this->hotspot_type[$id] : null;
 	}
 
 	/**
-	 * creates a new answer
+	 * Creates a new answer
 	 *
 	 * @author Olivier Brouckaert
 	 * @param string 	answer title
@@ -500,7 +504,7 @@ class Answer
 	/**
 	 * Records answers into the data base
 	 *
-	 * @author - Olivier Brouckaert
+	 * @author Olivier Brouckaert
 	 */
 	function save()
     {

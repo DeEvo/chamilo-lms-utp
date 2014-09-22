@@ -49,7 +49,9 @@ if ($global) {
     $course_list = array($current_course);
 }
 
-$form = new FormValidator('search_simple','POST','','',null,false);
+$formAction = api_get_self() . '?' .  api_get_cidreq();
+
+$form = new FormValidator('search_simple','POST',$formAction,'',null,false);
 $form->addElement('text','score',get_lang('Percentage'));
 if ($global) {
     $form->addElement('hidden','view','admin');
@@ -57,7 +59,7 @@ if ($global) {
     //Get exam lists
     $t_quiz = Database::get_course_table(TABLE_QUIZ_TEST);
     $course_id = api_get_course_int_id();
-    $sqlExercices = "    SELECT quiz.title,id FROM ".$t_quiz." AS quiz WHERE c_id = $course_id AND active='1' ORDER BY quiz.title ASC";
+    $sqlExercices = "    SELECT quiz.title,id FROM ".$t_quiz." AS quiz WHERE c_id = $course_id AND active >= 0 ORDER BY quiz.title ASC";
     $resultExercices = Database::query($sqlExercices);
     $exercise_list[0] = get_lang('All');
     while($a_exercices = Database::fetch_array($resultExercices)) {
@@ -142,14 +144,21 @@ $t_quiz = Database::get_course_table(TABLE_QUIZ_TEST);
 
 $export_array_global = $export_array =  array();
 if(!empty($course_list) && is_array($course_list)) {
+    $sessionId = api_get_session_id();
+    
     foreach ($course_list as $current_course) {
         $global_row = $row_not_global = array();
         $course_id = $current_course['real_id'];
-    
-        $a_students = CourseManager :: get_student_list_from_course_code($current_course['code'], false);
+   
+        if (empty($sessionId)) {
+            $a_students = CourseManager :: get_student_list_from_course_code($current_course['code'], false);
+        } else {
+            $a_students = CourseManager :: get_student_list_from_course_code($current_course['code'], true, $sessionId);
+        }
+
         $total_students = count($a_students);
     
-        $sqlExercices        = "SELECT count(id) as count FROM ".$t_quiz." AS quiz WHERE active='1' AND c_id = $course_id ";
+        $sqlExercices        = "SELECT count(id) as count FROM ".$t_quiz." AS quiz WHERE active >= 0 AND c_id = $course_id ";
         $resultExercices     = Database::query($sqlExercices);
         $data_exercises      = Database::store_result($resultExercices);
         $exercise_count     = $data_exercises[0]['count'];
@@ -166,12 +175,12 @@ if(!empty($course_list) && is_array($course_list)) {
         $sql = "SELECT visibility FROM $table WHERE c_id = $course_id AND name='quiz'";
         $resultVisibilityQuizz = Database::query($sql);
     
-        if (Database::result($resultVisibilityQuizz, 0 ,'visibility') == 1) {
-            $sqlExercices = "    SELECT quiz.title,id FROM ".$t_quiz." AS quiz WHERE c_id = $course_id  AND active='1' ORDER BY quiz.title ASC";
+        if (Database::result($resultVisibilityQuizz, 0 ,'visibility') >= 0) {
+            $sqlExercices = "    SELECT quiz.title,id FROM ".$t_quiz." AS quiz WHERE c_id = $course_id  AND active >= 0 ORDER BY quiz.title ASC";
             //Getting the exam list
             if (!$global) {
                 if (!empty($exercise_id)) {
-                    $sqlExercices = "    SELECT quiz.title,id FROM ".$t_quiz." AS quiz WHERE c_id = $course_id  AND active='1' AND id = $exercise_id ORDER BY quiz.title ASC";
+                    $sqlExercices = "    SELECT quiz.title,id FROM ".$t_quiz." AS quiz WHERE c_id = $course_id  AND active >= 0 AND id = $exercise_id ORDER BY quiz.title ASC";
                 }
             }
             $resultExercices = Database::query($sqlExercices);
@@ -205,7 +214,12 @@ if(!empty($course_list) && is_array($course_list)) {
                     $student_result = array();
     
                     foreach ($a_students as $student ) {
-                        $current_student_id = $student['user_id'];
+                        if (empty($sessionId)) {
+                            $current_student_id = $student['user_id'];
+                        } else {
+                            $current_student_id = $student['id_user'];
+                        }
+
                         $sqlEssais = "    SELECT COUNT(ex.exe_id) as essais
                                         FROM $tbl_stats_exercices AS ex
                                         WHERE  ex.exe_cours_id = '".$current_course['code']."'

@@ -1,6 +1,6 @@
 <?php
-
 /* For licensing terms, see /license.txt */
+
 /**
  * This is the session library for Chamilo.
  * All main sessions functions should be placed here.
@@ -496,7 +496,7 @@ class SessionManager
      * @param array options order and limit keys
      * @return array table with user name, lp name, progress
      */
-    public static function get_session_lp_progress($sessionId = 0, $courseId = 0, $date_from, $date_to, $options)
+    public static function get_session_lp_progress($sessionId = 0, $courseId = 0, $date_from = null, $date_to = null, $options = array())
     {
         //escaping vars
         $sessionId = $sessionId == 'T' ? 'T' : intval($sessionId);
@@ -508,28 +508,16 @@ class SessionManager
         $session_course_user = Database::get_main_table(TABLE_MAIN_SESSION_COURSE_USER);
         $user = Database::get_main_table(TABLE_MAIN_USER);
         $tbl_course_lp_view = Database::get_course_table(TABLE_LP_VIEW);
+        $sessionTable = Database::get_main_table(TABLE_MAIN_SESSION);
 
         $course = api_get_course_info_by_id($courseId);
 
-
-        //getting all the students of the course
-        //we are not using this because it only returns user ids
-        /* if (empty($sessionId)
-          {
-          // Registered students in a course outside session.
-          $users = CourseManager :: get_student_list_from_course_code($course_code);
-          } else {
-          // Registered students in session.
-          $users = CourseManager :: get_student_list_from_course_code($course_code, true, $sessionId);
-          } */
-
-        $sessionCond = 'and id_session = %s';
+        $sessionCond = ' AND s.id_session = %s';
         if ($sessionId == 'T') {
             $sessionCond = "";
         }
 
-        $where = " WHERE course_code = '%s'
-        AND s.status <> 2 $sessionCond";
+        $where = " WHERE course_code = '%s' AND s.status <> 2 $sessionCond";
 
         $limit = null;
         if (!empty($options['limit'])) {
@@ -545,59 +533,87 @@ class SessionManager
             $order = " ORDER BY " . $options['order'];
         }
 
-        $sql = "SELECT u.user_id, u.lastname, u.firstname, u.username, u.email, s.course_code
-        FROM $session_course_user s
-        INNER JOIN $user u ON u.user_id = s.id_user
-        $where $order $limit";
+        $sql = "SELECT u.user_id, u.lastname, u.firstname, u.username, u.email, s.course_code, s.id_session, ss.name
+                FROM $session_course_user s
+                INNER JOIN $user u ON u.user_id = s.id_user
+                INNER JOIN $sessionTable ss ON (ss.id = s.id_session)
+                $where
+                $order
+                $limit";
 
         $sql_query = sprintf($sql, $course['code'], $sessionId);
 
         $rs = Database::query($sql_query);
+        $users = array();
         while ($user = Database::fetch_array($rs)) {
             $users[$user['user_id']] = $user;
         }
 
-        //Get lessons
-        require_once api_get_path(SYS_CODE_PATH) . 'newscorm/learnpathList.class.php';
-        $lessons = LearnpathList::get_course_lessons($course['code'], $sessionId);
+        $intSessionId = $sessionId  == 'T' ? 0 : $sessionId;
+
+        // Get lessons.
+        require_once api_get_path(SYS_CODE_PATH).'newscorm/learnpathList.class.php';
+        $lessons = learnpathList::get_course_lessons($course['code'], $intSessionId);
 
         $table = array();
         foreach ($users as $user) {
             $data = array(
-                'lastname' => $user[1],
-                'firstname' => $user[2],
-                'username' => $user[3],
+                'session_name' => $user['name'],
+                'lastname' => $user['lastname'],
+                'firstname' => $user['firstname'],
+                'username' => $user['username'],
             );
 
-            $sessionCond = 'AND v.session_id = %d';
+            $sessionCond = ' AND v.session_id = %d';
             if ($sessionId == 'T') {
                 $sessionCond = "";
             }
 
-            //Get lessons progress by user
+            // Get lessons progress by user.
             $sql = "SELECT v.lp_id as id, v.progress
-            FROM  $tbl_course_lp_view v
-            WHERE v.c_id = %d
-            AND v.user_id = %d
+                    FROM $tbl_course_lp_view v
+                    WHERE v.c_id = %d AND v.user_id = %d
             $sessionCond";
-
             $sql_query = sprintf($sql, $courseId, $user['user_id'], $sessionId);
-
             $result = Database::query($sql_query);
-
             $user_lessons = array();
             while ($row = Database::fetch_array($result)) {
                 $user_lessons[$row['id']] = $row;
             }
 
-            //Match course lessons with user progress
+            // Getting LP list from the user
+            $getLPFromAllSessions = false;
+            if ($sessionId == 'T') {
+                $getLPFromAllSessions = true;
+            }
+
+            $lpListForUser = new learnpathList(
+                $user['user_id'],
+                $course['code'],
+                $intSessionId,
+                null,
+                false,
+                $getLPFromAllSessions
+            );
+
+            if (!empty($lpListForUser)) {
+                $lpListForUser = array_keys($lpListForUser->list);
+            }
+
+            // Match course lessons with user progress.
             $progress = 0;
             $count = 0;
+            // Teacher LP list
             foreach ($lessons as $lesson) {
-                $data[$lesson['id']] = (!empty($user_lessons[$lesson['id']]['progress'])) ? $user_lessons[$lesson['id']]['progress'] : 0;
-                $progress += $data[$lesson['id']];
-                $data[$lesson['id']] = $data[$lesson['id']] . '%';
-                $count++;
+                $lpId = $lesson['id'];
+                if (in_array($lpId, $lpListForUser)) {
+                    $data[$lpId] = !empty($user_lessons[$lpId]['progress']) ? $user_lessons[$lpId]['progress'] : 0;
+                    $progress += $data[$lpId];
+                    $count++;
+                    $data[$lesson['name']] = $data[$lesson['id']] . '%';
+                } else {
+                    $data[$lesson['name']] = '--';
+                }
             }
             if ($count == 0) {
                 $data['total'] = 0;
@@ -1342,6 +1358,7 @@ class SessionManager
             $courses = array($courses);
         }
 
+
         $gridData = array();
 
         $tags = Tracking::getCustomTags();
@@ -1523,6 +1540,67 @@ class SessionManager
 		    );
         }
         return $gridData;
+    }
+
+    /**
+     * Return the score from Track_e_exercise
+     * @param $show 0: percent 1: average
+     * @param $exercise_id
+     * @param $c_code
+     * @param $user_id Set 0 to get all valid user
+     * @param $lp_id set 0 to get all valid Lp
+     * @param $session_id Set 0 to get all valid session
+     * @return bool|float
+     */
+    function getScore($show, $exercise_id, $c_code, $user_id, $lp_id, $session_id)
+    {
+        if (empty($user_id)) {
+            $user_filter = 'AND orig_lp_id > 0';
+        } else {
+            $user_filter = 'AND orig_lp_id = '.$user_id;
+        }
+
+        if (empty($lp_id)) {
+            $lp_filter = 'AND exe_user_id > 0';
+        } else {
+            $lp_filter = 'AND exe_user_id = '.$lp_id;
+        }
+
+        if (empty($session_id)) {
+            $session_filter = 'AND session_id >= 0';
+        } else {
+            $session_filter = 'AND session_id = '.$session_id;
+        }
+
+        $track_e_exercise_table = Database::get_main_table(TABLE_STATISTIC_TRACK_E_EXERCICES);
+        $sql = "SELECT exe_result, exe_weighting FROM $track_e_exercise_table
+            WHERE exe_cours_id = 'CDFG001'
+            AND exe_exo_id = $exercise_id
+            AND status != 'incomplete'
+            $session_filter
+            $lp_filter
+            $user_filter
+            LIMIT 1
+            ";
+        $result = Database::query($sql);
+        $count_rows = Database::num_rows($result);
+        if ($count_rows > 0) {
+            $total = 0;
+            while ($row = Database::fetch_array($result, 'ASSOC')) {
+                $score = floatval($row['exe_result']);
+                $weight = floatval($row['exe_weighting']);
+                if ($show == 0) {
+                    $total += ($score / $weight * 100);
+                } elseif ($show == 1) {
+                    $total += ($score / ($weight * $count_rows));
+                } else {
+                    return false;
+                }
+            }
+            return $total;
+        } else {
+            return false;
+        }
     }
 
     function get_number_of_tracking_access_overview()
@@ -3445,6 +3523,7 @@ class SessionManager
     $file, $updateSession, $defaultUserId = null, $logger = null, $extraFields = array(), $extraFieldId = null, $daysCoachAccessBeforeBeginning = null, $daysCoachAccessAfterBeginning = null, $sessionVisibility = 1, $fieldsToAvoidUpdate = array(), $deleteUsersNotInList = false, $updateCourseCoaches = false
     )
     {
+        global $_configuration;
         $content = file($file);
 
         $error_message = null;
@@ -3787,6 +3866,9 @@ class SessionManager
 
                         // Checking if the flag is set TeachersWillBeAddedAsCoachInAllCourseSessions (course_edit.php)
                         $addTeachersToSession = true;
+                        if (isset($_configuration['add_teachers_to_sessions_courses'])) {
+                            $addTeachersToSession = $_configuration['add_teachers_to_sessions_courses'];
+                        }
                         if (array_key_exists('add_teachers_to_sessions_courses', $courseInfo)) {
                             $addTeachersToSession = $courseInfo['add_teachers_to_sessions_courses'];
                         }
@@ -4543,7 +4625,7 @@ class SessionManager
                 $courseInfo = api_get_course_info($courseCode);
                 $sessionInfo = api_get_session_info($sessionId);
                 $teacherInfo = api_get_user_info($teacherId[0]);
-                $students = self::getSessionProgress($sessionId, $courseInfo['real_id']);
+                $students = self::getSessionProgress($sessionId, $courseInfo['real_id'], array());
                 $nroStudent = count($students);
                 //Initilize sums
                 $lessonProgress = 0;

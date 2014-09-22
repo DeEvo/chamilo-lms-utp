@@ -1004,8 +1004,13 @@ class IndexManager {
                             $allowed_time = 0;
                             $dif_time_after = 0;
                             if ($date_session_start != '0000-00-00') {
-                                if ($is_coach_course && !isset($_GET['history'])) {
+                                if ($is_coach_course) {
                                     $allowed_time = api_strtotime($date_session_start.' 00:00:00') - ($days_access_before_beginning * 86400);
+                                } else {
+                                    $allowed_time = api_strtotime($date_session_start.' 00:00:00');
+                                }
+
+                                if (!isset($_GET['history'])) {
                                     if ($date_session_end != '0000-00-00') {
                                         $endSessionToTms = api_strtotime($date_session_end.' 23:59:59');
                                         if ($session_now > $endSessionToTms) {
@@ -1013,8 +1018,6 @@ class IndexManager {
                                             $dif_time_after = round($dif_time_after/86400);
                                         }
                                     }
-                                } else {
-                                    $allowed_time = api_strtotime($date_session_start.' 00:00:00');
                                 }
                             }
 

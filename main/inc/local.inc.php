@@ -659,7 +659,7 @@ if (!empty($cidReq) && (!isset($_SESSION['_cid']) or (isset($_SESSION['_cid']) &
 }
 
 /* USER INIT */
-
+$_userPermissions = array();
 if (isset($uidReset) && $uidReset) {    // session data refresh requested
     unset($_SESSION['_user']['uidReset']);
     $is_platformAdmin = false;
@@ -763,7 +763,6 @@ if (isset($cidReset) && $cidReset) {
                 //Course login
                 if (isset($_user['user_id'])) {
                     event_course_login($_course['code'], $_user['user_id'], api_get_session_id());
-                    error_log(__FILE__);
                 }
             }
         } else {
@@ -873,7 +872,7 @@ if (isset($cidReset) && $cidReset) {
                 $session_lifetime    = 3600; // 1 hour
 
                 $course_code = $_course['sysCode'];
-                $time = api_get_datetime();
+                $time = api_get_utc_datetime();
 
                 if (isset($_user['user_id']) && !empty($_user['user_id'])) {
 
@@ -883,7 +882,7 @@ if (isset($cidReset) && $cidReset) {
                             WHERE   user_id     = ".intval($_user ['user_id'])." AND
                                     course_code = '$course_code' AND
                                     session_id  = ".api_get_session_id()." AND
-                                    login_course_date > now() - INTERVAL $session_lifetime SECOND
+                                    login_course_date > '$time' - INTERVAL $session_lifetime SECOND
                         ORDER BY login_course_date DESC LIMIT 0,1";
                     $result = Database::query($sql);
                     if (Database::num_rows($result) > 0) {
@@ -892,12 +891,10 @@ if (isset($cidReset) && $cidReset) {
                         $sql = "UPDATE $course_tracking_table  SET logout_course_date = '$time', counter = counter+1
                                 WHERE course_access_id = ".intval($i_course_access_id)." AND session_id = ".api_get_session_id();
                         Database::query($sql);
-                        //error_log(preg_replace('/\s+/',' ',$sql));
                     } else {
                         $sql="INSERT INTO $course_tracking_table (course_code, user_id, login_course_date, logout_course_date, counter, session_id)" .
                             "VALUES('".$course_code."', '".$_user['user_id']."', '$time', '$time', '1','".api_get_session_id()."')";
                         Database::query($sql);
-                        //error_log(preg_replace('/\s+/',' ',$sql));
                     }
                 }
             }

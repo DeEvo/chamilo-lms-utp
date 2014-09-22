@@ -56,11 +56,14 @@ echo Display::page_header($nameTools);
 if ((isset($_POST['action']) && $_POST['action'] == 'course_select_form') || (isset($_POST['backup_option']) && $_POST['backup_option'] == 'full_backup')) {
 	if (isset ($_POST['action']) && $_POST['action'] == 'course_select_form') {
 		$course = CourseSelectForm::get_posted_course();
+        $zip_file = CourseArchiver::write_course($course);
 	} else {
 		$cb = new CourseBuilder();
 		$course = $cb->build();
+        $zip_file = CourseArchiver::write_course($course);
+        $cb->filterBuildDocumentsClean();
 	}
-	$zip_file = CourseArchiver::write_course($course);
+
 	Display::display_confirmation_message(get_lang('BackupCreated'));
 	echo '<br /><a class="btn btn-primary btn-large" href="../course_info/download.php?archive='.$zip_file.'">'.get_lang('Download').'</a>';
 
