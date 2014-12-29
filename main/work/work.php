@@ -97,7 +97,7 @@ if (!empty($group_id)) {
     $group_properties  = GroupManager::get_group_properties($group_id);
     $show_work = false;
 
-    if (api_is_allowed_to_edit(false, true)) {
+    if (api_is_allowed_to_edit(false, true) || api_is_course_manager_admin()) {
         $show_work = true;
     } else {
         // you are not a teacher
@@ -147,7 +147,7 @@ if (!empty($group_id)) {
 // Stats
 event_access_tool(TOOL_STUDENTPUBLICATION);
 
-$is_allowed_to_edit = api_is_allowed_to_edit();
+$is_allowed_to_edit = (api_is_allowed_to_edit() || api_is_course_manager_admin());
 $student_can_edit_in_session = api_is_allowed_to_session_edit(false, true);
 
 /*	Display links to upload form and tool options */
@@ -262,7 +262,7 @@ switch ($action) {
                 get_lang('Description').':</strong><p>'.Security::remove_XSS($my_folder_data['description'], STUDENT).
                 '</p></div></p>';
         }
-
+       
         $my_folder_data = get_work_data_by_id($work_id);
 
         $work_parents = array();
@@ -270,7 +270,7 @@ switch ($action) {
             $work_parents = getWorkList($work_id, $my_folder_data, $add_query);
         }
 
-        if (api_is_allowed_to_edit() || api_is_course_admin()) {
+        if (api_is_allowed_to_edit() || api_is_course_manager_admin()) {
             $userList = getWorkUserList($course_code, $session_id);
 
             // Work list
@@ -296,17 +296,19 @@ if (isset($origin) && $origin != 'learnpath') {
 
 Display::display_introduction_section(TOOL_STUDENTPUBLICATION);
 
+
 if ($origin == 'learnpath') {
     echo '<div style="height:15px">&nbsp;</div>';
 }
 
-display_action_links($work_id, $curdirpath, $action);
+display_action_links($work_id, $curdirpath, $action, $session_id);
 
 $message = Session::read('message');
 echo $message;
 Session::erase('message');
 
 echo $content;
+
 
 if ($origin != 'learnpath') {
     //we are not in the learning path tool

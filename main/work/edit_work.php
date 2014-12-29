@@ -14,7 +14,8 @@ require_once 'work.lib.php';
 // Section (for the tabs)
 $this_section = SECTION_COURSES;
 
-if (!api_is_allowed_to_edit()) {
+$permisos = (api_is_allowed_to_edit() || api_is_course_manager_admin());
+if (!$permisos) {
     api_not_allowed(true);
 }
 
