@@ -1750,7 +1750,7 @@ function getWorkListTeacher($start, $limit, $column, $direction, $where_conditio
 
     $course_id          = api_get_course_int_id();
     $session_id         = api_get_session_id();
-    $condition_session  = api_get_session_condition($session_id);
+    $condition_session  = api_get_session_condition($session_id, true, true);
     $group_id           = api_get_group_id();
     $is_allowed_to_edit = (api_is_allowed_to_edit(null, true) || api_is_course_manager_admin());
 
@@ -1815,18 +1815,25 @@ function getWorkListTeacher($start, $limit, $column, $direction, $where_conditio
                 'success'
             );
             
-            $editLink = Display::url(
-                Display::return_icon('edit.png', get_lang('Edit'), array(), ICON_SIZE_SMALL),
-                api_get_path(WEB_CODE_PATH).'work/edit_work.php?id='.$workId.'&'.api_get_cidreq()
-            );
+            $editLink = "";
 
             $downloadLink = Display::url(
                 Display::return_icon('save_pack.png', get_lang('Save'), array(), ICON_SIZE_SMALL),
                 api_get_path(WEB_CODE_PATH).'work/downloadfolder.inc.php?id='.$workId.'&'.api_get_cidreq()
             );
-            $deleteUrl = api_get_path(WEB_CODE_PATH).'work/work.php?id='.$workId.'&action=delete_dir&'.api_get_cidreq();
-            $deleteLink = '<a href="#" onclick="showConfirmationPopup(this, \''.$deleteUrl.'\' ) " >'.
-                Display::return_icon('delete.png', get_lang('Delete'), array(), ICON_SIZE_SMALL).'</a>';
+            $deleteUrl = "";
+            $deleteLink = "";
+
+            if ($session_id == $work['session_id']) {
+                $editLink = Display::url(
+                    Display::return_icon('edit.png', get_lang('Edit'), array(), ICON_SIZE_SMALL),
+                    api_get_path(WEB_CODE_PATH).'work/edit_work.php?id='.$workId.'&'.api_get_cidreq()
+                );
+
+                $deleteUrl = api_get_path(WEB_CODE_PATH).'work/work.php?id='.$workId.'&action=delete_dir&'.api_get_cidreq();
+                $deleteLink = '<a href="#" onclick="showConfirmationPopup(this, \''.$deleteUrl.'\' ) " >'.
+                    Display::return_icon('delete.png', get_lang('Delete'), array(), ICON_SIZE_SMALL).'</a>';
+            }
 
             $work['actions'] = $downloadLink.$editLink.$deleteLink;
             $works[] = $work;

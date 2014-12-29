@@ -10,7 +10,7 @@ require_once '../global.inc.php';
 $libpath = api_get_path(LIBRARY_PATH);
 
 // Chamilo UTP Development
-require_once api_get_path(SYS_PATH).'dev/vendor/autoload.php';
+//require_once api_get_path(SYS_PATH).'dev/vendor/autoload.php';
 
 // Uncomment enable debug
 // use Symfony\Component\Debug\Debug;
