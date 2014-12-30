@@ -3570,6 +3570,7 @@ function getFormWork($form, $defaults = array())
     // Create the form that asks for the directory name
     $form->addElement('text', 'new_dir', get_lang('AssignmentName'));
     $form->addRule('new_dir', get_lang('ThisFieldIsRequired'), 'required');
+    $form->addRule('new_dir', get_lang('TheAssignmenAlreadyExists'), 'assignment_name_available', $defaults);
     $form->add_html_editor('description', get_lang('Description'), false, false, getWorkDescriptionToolbar());
     $form->addElement(
         'advanced_settings',

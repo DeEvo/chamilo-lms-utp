@@ -150,6 +150,7 @@ class FormValidator extends HTML_QuickForm
         $this->registerRule('url', null, 'HTML_QuickForm_Rule_Url', $dir . 'Rule/Url.php');
         $this->registerRule('compare_fields', null, 'HTML_QuickForm_Compare_Fields', $dir . 'Rule/CompareFields.php');
         $this->registerRule('CAPTCHA', 'rule', 'HTML_QuickForm_Rule_CAPTCHA', 'HTML/QuickForm/Rule/CAPTCHA.php');
+        $this->registerRule('assignment_name_available', null, 'HTML_QuickForm_Rule_AssignmenNameAvailable', "{$dir}Rule/AssignmentNameAvailable.php");
 
         // Modify the default templates
         $renderer = & $this->defaultRenderer();
