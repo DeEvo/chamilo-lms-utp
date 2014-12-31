@@ -35,8 +35,6 @@ class HTML_QuickForm_Rule_AssignmenNameAvailable extends HTML_QuickForm_Rule
             $sql .= "AND title != '{$options['title']}' "
             . "AND id != {$options['id']}";
         }
-        
-        echo "$sql";
 
         $res = Database::query($sql);
 
