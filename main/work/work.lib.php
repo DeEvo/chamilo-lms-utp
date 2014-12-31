@@ -1658,6 +1658,7 @@ function getWorkListStudent($start, $limit, $column, $direction, $where_conditio
 {
     $workTable         = Database::get_course_table(TABLE_STUDENT_PUBLICATION);
     $workTableAssignment  = Database::get_course_table(TABLE_STUDENT_PUBLICATION_ASSIGNMENT);
+    $cItemPropertyTable = Database::get_course_table(TABLE_ITEM_PROPERTY);
 
     $course_id          = api_get_course_int_id();
     $session_id         = api_get_session_id();
@@ -1685,20 +1686,23 @@ function getWorkListStudent($start, $limit, $column, $direction, $where_conditio
     $active_condition = ' AND active IN (1, 0)';
 
     if ($getCount) {
-        $select = "SELECT count(w.id) as count ";
+        $select = "SELECT count(DISTINCT w.id) as count ";
     } else {
-        $select = "SELECT w.*, a.expires_on, expires_on, ends_on, enable_qualification ";
+        $select = "SELECT DISTINCT w.*, a.expires_on, expires_on, ends_on, enable_qualification ";
     }
 
     $sql = "$select
             FROM $workTable w
             LEFT JOIN $workTableAssignment a ON (a.publication_id = w.id AND a.c_id = w.c_id)
+            INNER JOIN $cItemPropertyTable ip ON (w.id = ip.ref AND w.c_id = ip.c_id)
                 $group_query
                 $subdirs_query
                 $active_condition
                 $condition_session
                 $where_condition
-            ";
+            AND ip.tool = 'work'
+            AND ip.visibility = 1
+            AND ip.id_session = $session_id";
 
     $sql .= " ORDER BY $column $direction ";
     $sql .= " LIMIT $start, $limit";
@@ -1835,7 +1839,36 @@ function getWorkListTeacher($start, $limit, $column, $direction, $where_conditio
                     Display::return_icon('delete.png', get_lang('Delete'), array(), ICON_SIZE_SMALL).'</a>';
             }
 
-            $work['actions'] = $downloadLink.$editLink.$deleteLink;
+            $workIsVisibile = workIsVisible($workId, $course_id, $session_id);
+            $hideLink = '';
+
+            $cantHide = api_is_platform_admin() || api_is_course_admin() || api_is_teacher();
+            $isInsideSession = $session_id > 0;
+            $isBasisWork = $work['session_id'] == 0;
+
+            if ($cantHide && $isInsideSession && $isBasisWork) {
+                if ($workIsVisibile) {
+                    $hideLink = Display::url(
+                        Display::return_icon('visible.gif', get_lang('Hide'), array(), ICON_SIZE_SMALL),
+                        api_get_path(WEB_CODE_PATH) . 'work/hide_show_work.php?' . api_get_cidreq() . "&" .
+                        http_build_query(array(
+                            'action' => 'hide',
+                            'id' => $workId
+                        ))
+                    );
+                } else {
+                    $hideLink = Display::url(
+                        Display::return_icon('invisible.gif', get_lang('Show'), array(), ICON_SIZE_SMALL),
+                        api_get_path(WEB_CODE_PATH) . 'work/hide_show_work.php?' . api_get_cidreq() . "&" .
+                        http_build_query(array(
+                            'action' => 'show',
+                            'id' => $workId
+                        ))
+                    );
+                }
+            }
+
+            $work['actions'] = $downloadLink.$editLink.$deleteLink . $hideLink;
             $works[] = $work;
         }
     }
@@ -3980,4 +4013,60 @@ function get_students_list_from_course_code(
         }
     }
     return $users;
+}
+
+/**
+ * Check if a work is visible
+ * @param int $workId The work id
+ * @param int $courseInfo The course id
+ * @param int $sessionId The session id
+ * @return boolean Return true if the work is visible. Otherwise return false
+ */
+function workIsVisible($workId, $courseId, $sessionId)
+{
+    $workId = intval($workId);
+    $courseId = intval($courseId);
+    $sessionId = intval($sessionId);
+
+    $itemPropertyTable = Database::get_course_table(TABLE_ITEM_PROPERTY);
+
+    $resultData = Database::select('visibility', $itemPropertyTable,
+            array(
+            'where' => array(
+                'c_id = ? AND ref = ? AND id_session = ? AND ' => array($courseId, $workId, $sessionId),
+                "tool = '?'" => 'work'
+            )
+            ), 'first');
+
+    if (!empty($resultData)) {
+        return $resultData['visibility'] == 1 ? true : false;
+    }
+
+    return false;
+}
+
+/**
+ * Set a work as invisible
+ * @param int $workId The work id
+ * @param int $courseInfo The course id
+ * @param int $sessionId The session id
+ */
+function workSetInvisible($workId, $courseInfo, $sessionId)
+{
+    api_item_property_update(
+        $courseInfo, 'work', $workId, 'invisible', api_get_user_id(), null, null, null, null, $sessionId
+    );
+}
+
+/**
+ * Set a work as visible
+ * @param int $workId The work id
+ * @param int $courseInfo The course id
+ * @param int $sessionId The session id
+ */
+function workSetVisible($workId, $courseInfo, $sessionId)
+{
+    api_item_property_update(
+        $courseInfo, 'work', $workId, 'visible', api_get_user_id(), null, null, null, null, $sessionId
+    );
 }
