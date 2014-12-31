@@ -10,7 +10,7 @@ $current_course_tool = TOOL_STUDENTPUBLICATION;
 
 api_protect_course_script(true);
 
-if (!api_is_platform_admin()) {
+if (!api_is_platform_admin() && !api_is_teacher() && !api_is_course_admin()) {
     api_not_allowed();
 }
 
