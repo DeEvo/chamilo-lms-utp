@@ -1868,7 +1868,17 @@ function getWorkListTeacher($start, $limit, $column, $direction, $where_conditio
                 }
             }
 
-            $work['actions'] = $downloadLink.$editLink.$deleteLink . $hideLink;
+            $copyLink = '';
+            $canCopy = api_is_platform_admin() || api_is_course_admin();
+
+            if ($isBasisWork && $canCopy) {
+                $copyLink = Display::url(
+                    Display::return_icon('cd_copy.png', get_lang('Show'), array(), ICON_SIZE_SMALL),
+                    api_get_path(WEB_CODE_PATH) . 'work/copy_work.php?' . api_get_cidreq() . "&id=$workId"
+                );
+            }
+
+            $work['actions'] = $downloadLink.$editLink.$deleteLink . $hideLink . $copyLink;
             $works[] = $work;
         }
     }
@@ -4069,4 +4079,37 @@ function workSetVisible($workId, $courseInfo, $sessionId)
     api_item_property_update(
         $courseInfo, 'work', $workId, 'visible', api_get_user_id(), null, null, null, null, $sessionId
     );
+}
+
+/**
+ * Get the work title for a copied work
+ * @param string $title The work title
+ * @param int $courseId The course id
+ * @param int $sessionId The session id
+ * @param int $groupId The group id
+ * @return type
+ */
+function getWorkCopiedTitle($title, $courseId, $sessionId, $groupId)
+{
+    $publicationTable = Database::get_course_table(TABLE_STUDENT_PUBLICATION);
+    $assignmentTable = Database::get_course_table(TABLE_STUDENT_PUBLICATION_ASSIGNMENT);
+
+    $sql = "SELECT COUNT(1) + 1 count "
+        . "FROM $publicationTable w "
+        . "LEFT JOIN $assignmentTable a ON (a.publication_id = w.id AND a.c_id = w.c_id) "
+        . "WHERE w.c_id = $courseId "
+        . "AND w.session_id = $sessionId "
+        . "AND w.post_group_id = $groupId "
+        . "AND w.title LIKE '$title%'";
+
+    $result = Database::query($sql);
+    $resultData = Database::fetch_assoc($result);
+
+    $times = 1;
+
+    if ($resultData) {
+        $times = $resultData['count'];
+    }
+
+    return sprintf("%s " . get_lang('CopiedX'), $title, $times);
 }
