@@ -4082,19 +4082,24 @@ function workSetVisible($workId, $courseInfo, $sessionId)
 }
 
 /**
- * Get the work title for a copied work
+ * Get the copied work title X times
  * @param string $title The work title
  * @param int $courseId The course id
  * @param int $sessionId The session id
  * @param int $groupId The group id
- * @return type
+ * @return int The number times
  */
-function getWorkCopiedTitle($title, $courseId, $sessionId, $groupId)
+function getCopiedWorkTitleXTimes($title, $courseId, $sessionId, $groupId)
 {
+    $title = Database::escape_string($title);
+    $courseId = intval($courseId);
+    $sessionId = intval($sessionId);
+    $groupId = intval($groupId);
+
     $publicationTable = Database::get_course_table(TABLE_STUDENT_PUBLICATION);
     $assignmentTable = Database::get_course_table(TABLE_STUDENT_PUBLICATION_ASSIGNMENT);
 
-    $sql = "SELECT COUNT(1) + 1 count "
+    $sql = "SELECT COUNT(1) count "
         . "FROM $publicationTable w "
         . "LEFT JOIN $assignmentTable a ON (a.publication_id = w.id AND a.c_id = w.c_id) "
         . "WHERE w.c_id = $courseId "
@@ -4111,5 +4116,20 @@ function getWorkCopiedTitle($title, $courseId, $sessionId, $groupId)
         $times = $resultData['count'];
     }
 
-    return sprintf("%s " . get_lang('CopiedX'), $title, $times);
+    return $times;
+}
+ 
+/**
+ * Get the work title for a copied work
+ * @param string $title The work title
+ * @param int $courseId The course id
+ * @param int $sessionId The session id
+ * @param int $groupId The group id
+ * @return string The copied work title
+ */
+function getCopiedWorkTitle($title, $courseId, $sessionId, $groupId)
+{
+    $times = getCopiedWorkTitleXTimes($title, $courseId, $sessionId, $groupId);
+
+    return sprintf(get_lang('TitleWithCopyXSuffix'), $title, $times + 1);
 }

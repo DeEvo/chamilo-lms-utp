@@ -1520,5 +1520,5 @@ $SessionCode = "Código de la Sesión";
 $CourseManagerAdmin = "Administrador de cursos";
 $ExerciseOnlyInLp = "Solo ejercicios incluidos en Lecciones";
 $TheAssignmenAlreadyExists = "El nombre de la tarea ya ha sido registrado";
-$CopiedX = "(Copia %d)";
+$TitleWithCopyXSuffix = "%s (Copia %d)";
 ?>

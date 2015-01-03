@@ -28,7 +28,7 @@ $courseDir = api_get_path(SYS_COURSE_PATH) . $courseInfo['path'];
 $workData = get_work_data_by_id($_GET['id']);
 $homework = get_work_assignment_by_id($_GET['id']);
 
-$copyTitle = getWorkCopiedTitle($workData['title'], $courseId, $sessionId, $groupId);
+$copyTitle = getCopiedWorkTitle($workData['title'], $courseId, $sessionId, $groupId);
 
 $newWorkData = array_merge($workData);
 
