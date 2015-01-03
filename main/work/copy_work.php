@@ -17,7 +17,6 @@ if (!api_is_platform_admin() && !api_is_course_admin()) {
 require_once 'work.lib.php';
 require_once api_get_path(LIBRARY_PATH).'fileUpload.lib.php';
 
-$workId = $_GET['id'];
 $userId = api_get_user_id();
 $courseId = api_get_course_int_id();
 $sessionId = api_get_session_id();
@@ -26,8 +25,8 @@ $groupId = api_get_group_id();
 $courseInfo = api_get_course_info();
 $courseDir = api_get_path(SYS_COURSE_PATH) . $courseInfo['path'];
 
-$workData = get_work_data_by_id($workId);
-$homework = get_work_assignment_by_id($workId);
+$workData = get_work_data_by_id($_GET['id']);
+$homework = get_work_assignment_by_id($_GET['id']);
 
 $copyTitle = getWorkCopiedTitle($workData['title'], $courseId, $sessionId, $groupId);
 

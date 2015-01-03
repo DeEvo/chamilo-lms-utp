@@ -16,17 +16,16 @@ if (!api_is_platform_admin() && !api_is_teacher() && !api_is_course_admin()) {
 
 require_once 'work.lib.php';
 
-$workId = $_GET['id'];
 $courseInfo = api_get_course_info();
 $courseId = api_get_course_int_id();
 $sessionId = api_get_session_id();
 
-$workIsVisible = workIsVisible($workId, $courseId, $sessionId);
+$workIsVisible = workIsVisible($_GET['id'], $courseId, $sessionId);
 
 if ($workIsVisible) {
-    workSetInvisible($workId, $courseInfo, $sessionId);
+    workSetInvisible($_GET['id'], $courseInfo, $sessionId);
 } else {
-    workSetVisible($workId, $courseInfo, $sessionId);
+    workSetVisible($_GET['id'], $courseInfo, $sessionId);
 }
 
 header('Location:' . api_get_path(WEB_CODE_PATH) . 'work/work.php?' . api_get_cidreq());
