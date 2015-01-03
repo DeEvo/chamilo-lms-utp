@@ -1,4 +1,5 @@
 <?php
+
 /* For licensing terms, see /license.txt */
 
 /**
@@ -28,4 +29,8 @@ if ($workIsVisible) {
     workSetVisible($_GET['id'], $courseInfo, $sessionId);
 }
 
-header('Location:' . api_get_path(WEB_CODE_PATH) . 'work/work.php?' . api_get_cidreq());
+header(
+    'Location:' . api_get_path(WEB_CODE_PATH)
+        . 'work/work.php?'
+        . api_get_cidreq()
+);

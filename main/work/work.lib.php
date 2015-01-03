@@ -1878,7 +1878,7 @@ function getWorkListTeacher($start, $limit, $column, $direction, $where_conditio
                 );
             }
 
-            $work['actions'] = $downloadLink.$editLink.$deleteLink . $hideLink . $copyLink;
+            $work['actions'] = $downloadLink . $editLink . $deleteLink . $hideLink . $copyLink;
             $works[] = $work;
         }
     }
@@ -4040,13 +4040,16 @@ function workIsVisible($workId, $courseId, $sessionId)
 
     $itemPropertyTable = Database::get_course_table(TABLE_ITEM_PROPERTY);
 
-    $resultData = Database::select('visibility', $itemPropertyTable,
-            array(
-            'where' => array(
-                'c_id = ? AND ref = ? AND id_session = ? AND ' => array($courseId, $workId, $sessionId),
-                "tool = '?'" => 'work'
-            )
-            ), 'first');
+    $resultData = Database::select('visibility', $itemPropertyTable, array(
+        'where' => array(
+            'c_id = ? AND ref = ? AND id_session = ? AND ' => array(
+                $courseId,
+                $workId,
+                $sessionId
+            ),
+            "tool = '?'" => 'work'
+        )
+    ), 'first');
 
     if (!empty($resultData)) {
         return $resultData['visibility'] == 1 ? true : false;
@@ -4064,7 +4067,16 @@ function workIsVisible($workId, $courseId, $sessionId)
 function workSetInvisible($workId, $courseInfo, $sessionId)
 {
     api_item_property_update(
-        $courseInfo, 'work', $workId, 'invisible', api_get_user_id(), null, null, null, null, $sessionId
+        $courseInfo,
+        'work',
+        $workId,
+        'invisible',
+        api_get_user_id(),
+        null,
+        null,
+        null,
+        null,
+        $sessionId
     );
 }
 
@@ -4077,7 +4089,16 @@ function workSetInvisible($workId, $courseInfo, $sessionId)
 function workSetVisible($workId, $courseInfo, $sessionId)
 {
     api_item_property_update(
-        $courseInfo, 'work', $workId, 'visible', api_get_user_id(), null, null, null, null, $sessionId
+        $courseInfo,
+        'work',
+        $workId,
+        'visible',
+        api_get_user_id(),
+        null,
+        null,
+        null,
+        null,
+        $sessionId
     );
 }
 
@@ -4097,15 +4118,18 @@ function getCopiedWorkTitleXTimes($title, $courseId, $sessionId, $groupId)
     $groupId = intval($groupId);
 
     $publicationTable = Database::get_course_table(TABLE_STUDENT_PUBLICATION);
-    $assignmentTable = Database::get_course_table(TABLE_STUDENT_PUBLICATION_ASSIGNMENT);
+    $assignmentTable = Database::get_course_table(
+        TABLE_STUDENT_PUBLICATION_ASSIGNMENT
+    );
 
     $sql = "SELECT COUNT(1) count "
-        . "FROM $publicationTable w "
-        . "LEFT JOIN $assignmentTable a ON (a.publication_id = w.id AND a.c_id = w.c_id) "
-        . "WHERE w.c_id = $courseId "
-        . "AND w.session_id = $sessionId "
-        . "AND w.post_group_id = $groupId "
-        . "AND w.title LIKE '$title%'";
+            . "FROM $publicationTable w "
+            . "LEFT JOIN $assignmentTable a "
+            . "ON (a.publication_id = w.id AND a.c_id = w.c_id) "
+            . "WHERE w.c_id = $courseId "
+            . "AND w.session_id = $sessionId "
+            . "AND w.post_group_id = $groupId "
+            . "AND w.title LIKE '$title%'";
 
     $result = Database::query($sql);
     $resultData = Database::fetch_assoc($result);
@@ -4118,7 +4142,7 @@ function getCopiedWorkTitleXTimes($title, $courseId, $sessionId, $groupId)
 
     return $times;
 }
- 
+
 /**
  * Get the work title for a copied work
  * @param string $title The work title

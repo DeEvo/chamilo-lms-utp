@@ -2,8 +2,8 @@
 /* For licensing terms, see /license.txt */
 
 /**
- * 	Show or hide an assignment
- * 	@package chamilo.work
+ * Show or hide an assignment
+ * @package chamilo.work
  */
 require_once '../inc/global.inc.php';
 $current_course_tool = TOOL_STUDENTPUBLICATION;
@@ -15,7 +15,7 @@ if (!api_is_platform_admin() && !api_is_course_admin()) {
 }
 
 require_once 'work.lib.php';
-require_once api_get_path(LIBRARY_PATH).'fileUpload.lib.php';
+require_once api_get_path(LIBRARY_PATH) . 'fileUpload.lib.php';
 
 $userId = api_get_user_id();
 $courseId = api_get_course_int_id();
